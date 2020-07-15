@@ -1,4 +1,0 @@
-Building DAG of jobs...
-MissingInputException in line 108 of /pollard/data/projects/eukdetect/midas_testing/busco_v4/eukdetect_repo/EukDetect/rules/runall.rules:
-Missing input files for rule taxonomize:
-/pollard/data/projects/eukdetect/midas_testing/busco_v4/eukdetect_repo/EukDetect/eukdetect/taxa.sqlite

@@ -1,3 +1,0 @@
-KeyError in line 14 of /pollard/data/projects/eukdetect/midas_testing/busco_v4/eukdetect_repo/EukDetect/rules/runall.rules:
-'readmin'
-  File "/pollard/data/projects/eukdetect/midas_testing/busco_v4/eukdetect_repo/EukDetect/rules/runall.rules", line 14, in <module>

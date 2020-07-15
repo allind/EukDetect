@@ -1,5 +1,0 @@
-Building DAG of jobs...
-MissingInputException in line 31 of /pollard/data/projects/eukdetect/midas_testing/busco_v4/eukdetect_repo/EukDetect/rules/runall.rules:
-Missing input files for rule aln:
-/pollard/data/projects/eukdetect/midas_testing/busco_v4/eukdetect_repo/test_data/C_albicans_c5_2.fastq.gz
-/pollard/data/projects/eukdetect/midas_testing/busco_v4/eukdetect_repo/test_data/C_albicans_c5_1.fastq.gz
