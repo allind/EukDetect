@@ -21,3 +21,15 @@ conda env create -n eukdetect -f environment.yml
 conda activate eukdetect
 python setup.py install
 ```
+
+# Usage
+
+**Edit the config file**
+Copy the default_configfile.yml to your_configfile.yml
+
+**Run modes**
+
+Run whole pipeline
+```
+eukdetect-runall --configfile [config file] --cores [cores]
+```
