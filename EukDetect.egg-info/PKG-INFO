@@ -1,0 +1,11 @@
+Metadata-Version: 2.1
+Name: EukDetect
+Version: 0.0.1
+Summary: Detect eukaryotes from shotgun metagenomic data
+Home-page: https://github.com/allind/EukDetect.git
+Author: Abigail Lind
+Author-email: allind89@gmail.com
+License: UNKNOWN
+Description: # EukDetect
+Platform: UNKNOWN
+Description-Content-Type: text/markdown

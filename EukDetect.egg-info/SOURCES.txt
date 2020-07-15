@@ -1,0 +1,15 @@
+README.md
+setup.py
+EukDetect.egg-info/PKG-INFO
+EukDetect.egg-info/SOURCES.txt
+EukDetect.egg-info/dependency_links.txt
+EukDetect.egg-info/entry_points.txt
+EukDetect.egg-info/top_level.txt
+eukdetect/__init__.py
+eukdetect/aln.py
+eukdetect/bam_to_pid.py
+eukdetect/eukdb_config_create.py
+eukdetect/filter.py
+eukdetect/runall.py
+eukdetect/taxonomy_counts_with_coverage_and_pid.py
+eukdetect/taxonomy_counts_with_coverage_and_pid_filterpass.py

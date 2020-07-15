@@ -1,0 +1,3 @@
+[console_scripts]
+eukdetect-runall = eukdetect.runall:main
+

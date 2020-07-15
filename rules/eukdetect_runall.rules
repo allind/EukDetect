@@ -1,0 +1,132 @@
+
+# -*- mode: Snakemake -*-
+
+
+#import statements
+#how can i call a script...
+
+
+
+#configfile: "_config.yml"
+
+rule all:
+	input:
+		expand("{outputdir}/aln/{sample}_aln_q30_lenfilter.sorted.bam", sample=config["samples"], outputdir=config["outputdir"]),
+		expand("{outputdir}/aln/{sample}_aln_q30_lenfilter.fq", sample=config["samples"], outputdir=config["outputdir"]),
+		expand("{outputdir}/aln/{sample}_low_complexity.txt", sample=config["samples"], outputdir=config["outputdir"]),
+		expand("{outputdir}/aln/{sample}_aln_q30_lenfilter.fq", sample=config["samples"], outputdir=config["outputdir"]),
+		expand("{outputdir}/aln/{sample}_aln_q30_lenfilter_complexity.sorted.bam", sample=config["samples"], outputdir=config["outputdir"]),
+		expand("{outputdir}/aln/{sample}_aln_q30_lenfilter_complexity_fixmate.sorted.bam", sample=config["samples"], outputdir=config["outputdir"]),
+		expand("{outputdir}/aln/{sample}_aln_q30_lenfilter_complexity_rmdup.bam", sample=config["samples"], outputdir=config["outputdir"]),
+		expand("{outputdir}/aln/{sample}_aln_q30_lenfilter_complexity_rmdup.sorted.bam", sample=config["samples"], outputdir=config["outputdir"]),
+		expand("{outputdir}/aln/{sample}_aln_q30_lenfilter_complexity_rmdup.sorted.bam.bai", sample=config["samples"], outputdir=config["outputdir"]),
+		expand("{outputdir}/aln/{sample}_dupremove_stats.txt", sample=config["samples"], outputdir=config["outputdir"]),
+		expand("{outputdir}/filtering/{sample}_read_counts_and_mismatches.txt", sample=config["samples"], outputdir=config["outputdir"]),
+		expand("{outputdir}/filtering/{sample}_hit_taxonomy_buscoall.txt", sample=config["samples"], outputdir=config["outputdir"]),
+		expand("{outputdir}/filtering/{sample}_read_counts_per_species_buscoall.txt", sample=config["samples"], outputdir=config["outputdir"]),
+		expand("{outputdir}/{sample}_hit_taxonomy_buscoall_filterpass.txt", sample=config["samples"], outputdir=config["outputdir"]),
+		expand("{outputdir}/{sample}_read_counts_per_species_buscoall_filterpass.txt", sample=config["samples"], outputdir=config["outputdir"])
+
+	
+rule aln:
+	input:
+		db = expand("{tax_dir}/all_buscos_v4.fna", tax_dir=config["taxonomy_dir"]),
+		r1 = expand("{fq_dir}/{{sample}}{fwd_suffix}", fq_dir=config["fq_dir"], fwd_suffix=config["fwd_suffix"]),
+		r2 = expand("{fq_dir}/{{sample}}{rev_suffix}", fq_dir=config["fq_dir"], rev_suffix=config["rev_suffix"])
+	output:
+		bam = "{outputdir}/aln/{sample}_aln_q30_lenfilter.sorted.bam"
+	run:
+	#if se do one
+	#if pe do other
+		"bowtie2 --quiet --omit-sec-seq --no-discordant --no-unal -x {input.db} -1 {input.r1} -2	{input.r2} | "
+		"perl -lane '$l = 0; $F[5] =~ s/(\d+)[MX=DN]/$l+=$1/eg; print if $l > 60 or /^@/' | "
+		"samtools view -q 30 -bS - | "
+		"samtools sort -o {output.bam} - "
+
+
+rule bam2fastq:
+	input:
+		bam = "{outputdir}/aln/{sample}_aln_q30_lenfilter.sorted.bam"
+	output:
+		fq = "{outputdir}/aln/{sample}_aln_q30_lenfilter.fq"
+	shell:
+		"bedtools bamtofastq -i {input.bam} -fq {output.fq}"
+
+rule find_low_complexity:
+	input:
+		fq = rules.bam2fastq.output.fq
+	output:
+		drop_complex = "{outputdir}/aln/{sample}_low_complexity.txt"
+		
+	shell:
+		"cat {input.fq} | kz | awk '{{ if ($4<0.5) print $1 }}' > {output.drop_complex}"
+
+rule remove_low_complexity:
+	input:
+		inbam = "{outputdir}/aln/{sample}_aln_q30_lenfilter.sorted.bam",
+		drop_complex ="{outputdir}/aln/{sample}_low_complexity.txt"
+	output:
+		bam = "{outputdir}/aln/{sample}_aln_q30_lenfilter_complexity.sorted.bam"
+	shell:
+		"samtools view -h {input.inbam} | grep -v -f {input.drop_complex} | samtools view -bS - > {output.bam}"
+
+rule rmdup:
+	input:
+		inbam = "{outputdir}/aln/{sample}_aln_q30_lenfilter_complexity.sorted.bam"
+	output:
+		tmpbam = "{outputdir}/aln/{sample}_aln_q30_lenfilter_complexity_fixmate.sorted.bam",
+		outbam = "{outputdir}/aln/{sample}_aln_q30_lenfilter_complexity_rmdup.bam",
+		outsort = "{outputdir}/aln/{sample}_aln_q30_lenfilter_complexity_rmdup.sorted.bam",
+		stats = "{outputdir}/aln/{sample}_dupremove_stats.txt"
+	shell:
+		"""
+		samtools sort -n {input.inbam} | samtools fixmate -m - {output.tmpbam}
+		samtools sort {output.tmpbam} | samtools markdup -r -s -f {output.stats} - {output.outbam}
+		samtools sort -o {output.outsort} {output.outbam} 
+		"""		
+
+rule index:
+	input:
+		bam = "{outputdir}/aln/{sample}_aln_q30_lenfilter_complexity_rmdup.sorted.bam"
+	output:
+		bai = "{outputdir}/aln/{sample}_aln_q30_lenfilter_complexity_rmdup.sorted.bam.bai"
+		
+	shell:
+		"samtools index {input.bam} {output.bai}"
+
+rule countreads:
+	input:
+		bam = "{outputdir}/aln/{sample}_aln_q30_lenfilter_complexity_rmdup.sorted.bam",
+		bai = "{outputdir}/aln/{sample}_aln_q30_lenfilter_complexity_rmdup.sorted.bam.bai",
+		countscript = expand("{tax_dir}/bam_to_pid.py", tax_dir=config["taxonomy_dir"]),
+		ref = expand("{tax_dir}/all_buscos_v4.fna", tax_dir=config["taxonomy_dir"])
+	output:
+		counts = "{outputdir}/filtering/{sample}_read_counts_and_mismatches.txt"
+	shell:
+		"python {input.countscript} {input.bam} {input.ref} > {output.counts}"
+
+rule taxonomize:
+	input:
+		counts = "{outputdir}/filtering/{sample}_read_counts_and_mismatches.txt",
+		script = expand("{tax_dir}/taxonomy_counts_with_coverage_and_pid.py", tax_dir=config["taxonomy_dir"]),
+		taxid_link = expand("{tax_dir}/busco_taxid_link.txt", tax_dir=config["taxonomy_dir"]),
+		inherited_markers = expand("{tax_dir}/specific_and_inherited_markers_per_taxid.txt", tax_dir=config["taxonomy_dir"]),
+		taxdb = expand("{tax_dir}/taxa.sqlite", tax_dir=config["taxonomy_dir"])
+	output:
+		taxonomy ="{outputdir}/filtering/{sample}_hit_taxonomy_buscoall.txt",
+		readcounts = "{outputdir}/filtering/{sample}_read_counts_per_species_buscoall.txt"
+	shell:
+		"python {input.script} {input.taxid_link} {input.taxdb} {input.inherited_markers} {input.counts} {output.taxonomy} {output.readcounts}"
+
+rule filterpass:
+	input:
+		counts = "{outputdir}/filtering/{sample}_read_counts_and_mismatches.txt",
+		script = expand("{tax_dir}/taxonomy_counts_with_coverage_and_pid_filterpass.py", tax_dir=config["taxonomy_dir"]),
+		taxid_link = expand("{tax_dir}/busco_taxid_link.txt", tax_dir=config["taxonomy_dir"]),
+		inherited_markers = expand("{tax_dir}/specific_and_inherited_markers_per_taxid.txt", tax_dir=config["taxonomy_dir"]),
+		taxdb = expand("{tax_dir}/taxa.sqlite", tax_dir=config["taxonomy_dir"])
+	output:
+		taxonomy ="{outputdir}/{sample}_hit_taxonomy_buscoall_filterpass.txt",
+		readcounts = "{outputdir}/{sample}_read_counts_per_species_buscoall_filterpass.txt"
+	shell:
+		"python {input.script} {input.taxid_link} {input.taxdb} {input.inherited_markers} {input.counts} {output.taxonomy} {output.readcounts}"
