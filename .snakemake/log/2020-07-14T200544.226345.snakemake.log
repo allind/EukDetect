@@ -1,0 +1,3 @@
+KeyError in line 33 of /pollard/data/projects/eukdetect/midas_testing/busco_v4/eukdetect_repo/EukDetect/rules/runall.rules:
+'taxonomy_dir'
+  File "/pollard/data/projects/eukdetect/midas_testing/busco_v4/eukdetect_repo/EukDetect/rules/runall.rules", line 33, in <module>

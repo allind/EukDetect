@@ -1,0 +1,5 @@
+Building DAG of jobs...
+MissingInputException in line 98 of /pollard/data/projects/eukdetect/midas_testing/busco_v4/eukdetect_repo/EukDetect/rules/eukdb_buscoall.rules:
+Missing input files for rule taxonomize:
+../databases/specific_and_inherited_markers_per_taxid.txt
+../databases/busco_taxid_link.txt

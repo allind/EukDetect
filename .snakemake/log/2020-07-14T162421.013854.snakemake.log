@@ -1,0 +1,38 @@
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 1
+Rules claiming more threads will be scaled down.
+Job counts:
+	count	jobs
+	1	all
+	1	aln
+	1	bam2fastq
+	1	countreads
+	1	filterpass
+	1	find_low_complexity
+	1	index
+	1	remove_low_complexity
+	1	rmdup
+	1	taxonomize
+	10
+
+[Tue Jul 14 16:24:21 2020]
+rule aln:
+    input: ../databases/all_buscos_v4.fna, ../test_data/C_albicans_c5_R1.fastq.gz, ../test_data/C_albicans_c5_R2.fastq.gz
+    output: ../output/aln/C_albicans_c5_aln_q30_lenfilter.sorted.bam
+    jobid: 4
+    wildcards: rootdir=../output, sample=C_albicans_c5
+
+[Tue Jul 14 16:24:21 2020]
+Error in rule aln:
+    jobid: 4
+    output: ../output/aln/C_albicans_c5_aln_q30_lenfilter.sorted.bam
+
+RuleException:
+CalledProcessError in line 34 of /pollard/data/projects/eukdetect/midas_testing/busco_v4/eukdetect_repo/EukDetect/rules/eukdb_buscoall.rules:
+Command ' set -euo pipefail;  bowtie2 --quiet --omit-sec-seq --no-discordant --no-unal -x ../databases/all_buscos_v4.fna -1 ../test_data/C_albicans_c5_R1.fastq.gz -2	../test_data/C_albicans_c5_R2.fastq.gz | perl -lane '$l = 0; $F[5] =~ s/(\d+)[MX=DN]/$l+=$1/eg; print if $l > 120 or /^@/' | samtools view -q 30 -bS - | samtools sort -o ../output/aln/C_albicans_c5_aln_q30_lenfilter.sorted.bam - ' returned non-zero exit status 1.
+  File "/pollard/data/projects/eukdetect/midas_testing/busco_v4/eukdetect_repo/EukDetect/rules/eukdb_buscoall.rules", line 34, in __rule_aln
+  File "/pollard/home/alind/miniconda3/envs/eukdetect/lib/python3.6/concurrent/futures/thread.py", line 56, in run
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look above for error message
+Complete log: /pollard/data/projects/eukdetect/midas_testing/busco_v4/eukdetect_repo/EukDetect/.snakemake/log/2020-07-14T162421.013854.snakemake.log

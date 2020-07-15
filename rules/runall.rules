@@ -22,10 +22,10 @@ rule all:
 		expand("{outputdir}/aln/{sample}_aln_q30_lenfilter_complexity_rmdup.sorted.bam.bai", sample=config["samples"], outputdir=config["outputdir"]),
 		expand("{outputdir}/aln/{sample}_dupremove_stats.txt", sample=config["samples"], outputdir=config["outputdir"]),
 		expand("{outputdir}/filtering/{sample}_read_counts_and_mismatches.txt", sample=config["samples"], outputdir=config["outputdir"]),
-		expand("{outputdir}/filtering/{sample}_hit_taxonomy_buscoall.txt", sample=config["samples"], outputdir=config["outputdir"]),
-		expand("{outputdir}/filtering/{sample}_read_counts_per_species_buscoall.txt", sample=config["samples"], outputdir=config["outputdir"]),
-		expand("{outputdir}/{sample}_hit_taxonomy_buscoall_filterpass.txt", sample=config["samples"], outputdir=config["outputdir"]),
-		expand("{outputdir}/{sample}_read_counts_per_species_buscoall_filterpass.txt", sample=config["samples"], outputdir=config["outputdir"])
+		expand("{outputdir}/filtering/{sample}_hit_taxonomy.txt", sample=config["samples"], outputdir=config["outputdir"]),
+		expand("{outputdir}/filtering/{sample}_all_stats_per_taxid.txt", sample=config["samples"], outputdir=config["outputdir"]),
+		expand("{outputdir}/{sample}_hit_taxonomy_filterpass.txt", sample=config["samples"], outputdir=config["outputdir"]),
+		expand("{outputdir}/{sample}_stats_per_filtered_taxid.txt", sample=config["samples"], outputdir=config["outputdir"])
 
 	
 rule aln:
@@ -113,8 +113,8 @@ rule taxonomize:
 		inherited_markers = expand("{tax_dir}/specific_and_inherited_markers_per_taxid.txt", tax_dir=config["database_dir"]),
 		taxdb = expand("{tax_dir}/taxa.sqlite", tax_dir=config["database_dir"])
 	output:
-		taxonomy ="{outputdir}/filtering/{sample}_hit_taxonomy_buscoall.txt",
-		readcounts = "{outputdir}/filtering/{sample}_read_counts_per_species_buscoall.txt"
+		taxonomy ="{outputdir}/filtering/{sample}_hit_taxonomy.txt",
+		readcounts = "{outputdir}/filtering/{sample}_all_stats_per_taxid.txt"
 	shell:
 		"python {input.script} {input.taxid_link} {input.taxdb} {input.inherited_markers} {input.counts} {output.taxonomy} {output.readcounts}"
 
@@ -126,7 +126,7 @@ rule filterpass:
 		inherited_markers = expand("{tax_dir}/specific_and_inherited_markers_per_taxid.txt", tax_dir=config["database_dir"]),
 		taxdb = expand("{tax_dir}/taxa.sqlite", tax_dir=config["database_dir"])
 	output:
-		taxonomy ="{outputdir}/{sample}_hit_taxonomy_buscoall_filterpass.txt",
-		readcounts = "{outputdir}/{sample}_read_counts_per_species_buscoall_filterpass.txt"
+		taxonomy ="{outputdir}/{sample}_hit_taxonomy_filterpass.txt",
+		readcounts = "{outputdir}/{sample}_stats_per_filtered_taxid.txt"
 	shell:
 		"python {input.script} {input.taxid_link} {input.taxdb} {input.inherited_markers} {input.counts} {output.taxonomy} {output.readcounts}"
