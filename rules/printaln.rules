@@ -1,0 +1,31 @@
+
+rule all:
+	input:
+		expand("{outputdir}/alignment_commands.txt", outputdir=config["outputdir"])
+
+rule printaln:
+	input:
+		db = expand("{tax_dir}/all_buscos_v4.fna", tax_dir=config["database_dir"]),
+		r1 = expand("{fq_dir}/{sample}{fwd_suffix}", sample=config["samples"], fq_dir=config["fq_dir"], fwd_suffix=config["fwd_suffix"]) if config["paired_end"] else expand("{fq_dir}/{sample}{se_suffix}", sample=config["samples"], fq_dir=config["fq_dir"], se_suffix=config["se_suffix"]),
+		r2 = expand("{fq_dir}/{sample}{rev_suffix}", sample=config["samples"], fq_dir=config["fq_dir"], rev_suffix=config["rev_suffix"]) if config["paired_end"] else expand("{fq_dir}/{sample}{se_suffix}", sample=config["samples"], fq_dir=config["fq_dir"], se_suffix=config["se_suffix"])
+		#r1 = expand("{fq_dir}/{{sample}}{fwd_suffix}", fq_dir=config["fq_dir"], fwd_suffix=config["fwd_suffix"]),
+		#r2 = expand("{fq_dir}/{{sample}}{rev_suffix}", fq_dir=config["fq_dir"], rev_suffix=config["rev_suffix"])
+	output:
+		alnfile = "{outputdir}/alignment_commands.txt"
+	run:
+		readlen=config["readlen"]
+		sn = config["samples"]
+		minreadlen = round(readlen * 0.8, 0)
+		if minreadlen < 70:
+			minreadlen = 70
+		outdest = open(output.alnfile, "w+")
+		if config["paired_end"]:
+			outdest.write("bowtie2 --quiet --omit-sec-seq --no-discordant --no-unal -x {input.db} -1 {input.r1} -2	{input.r2} | "
+			"perl -lane '$l = 0; $F[5] =~ s/(\d+)[MX=DN]/$l+=$1/eg; print if $l > {minreadlen} or /^@/' | "
+			"samtools view -q 30 -bS - | "
+			"samtools sort -o  - \n")
+		else:
+			outdest.write("bowtie2 --quiet --omit-sec-seq --no-discordant --no-unal -x {input.db} -U {input.r1} | "
+			"perl -lane '$l = 0; $F[5] =~ s/(\d+)[MX=DN]/$l+=$1/eg; print if $l > {minreadlen} or /^@/' | "
+			"samtools view -q 30 -bS - | "
+			"samtools sort -o  - \n")

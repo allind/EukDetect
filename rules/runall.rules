@@ -1,14 +1,4 @@
 
-# -*- mode: Snakemake -*-
-
-
-#import statements
-#how can i call a script...
-
-
-
-#configfile: "_config.yml"
-
 rule all:
 	input:
 		expand("{outputdir}/aln/{sample}_aln_q30_lenfilter.sorted.bam", sample=config["samples"], outputdir=config["outputdir"]),
@@ -31,17 +21,29 @@ rule all:
 rule aln:
 	input:
 		db = expand("{tax_dir}/all_buscos_v4.fna", tax_dir=config["database_dir"]),
-		r1 = expand("{fq_dir}/{{sample}}{fwd_suffix}", fq_dir=config["fq_dir"], fwd_suffix=config["fwd_suffix"]),
-		r2 = expand("{fq_dir}/{{sample}}{rev_suffix}", fq_dir=config["fq_dir"], rev_suffix=config["rev_suffix"])
+		r1 = expand("{fq_dir}/{{sample}}{fwd_suffix}", fq_dir=config["fq_dir"], fwd_suffix=config["fwd_suffix"]) if config["paired_end"] else expand("{fq_dir}/{{sample}}{se_suffix}", fq_dir=config["fq_dir"], se_suffix=config["se_suffix"]),
+		r2 = expand("{fq_dir}/{{sample}}{rev_suffix}", fq_dir=config["fq_dir"], rev_suffix=config["rev_suffix"]) if config["paired_end"] else expand("{fq_dir}/{{sample}}{se_suffix}", fq_dir=config["fq_dir"], se_suffix=config["se_suffix"])
+		#r1 = expand("{fq_dir}/{{sample}}{fwd_suffix}", fq_dir=config["fq_dir"], fwd_suffix=config["fwd_suffix"]),
+		#r2 = expand("{fq_dir}/{{sample}}{rev_suffix}", fq_dir=config["fq_dir"], rev_suffix=config["rev_suffix"])
 	output:
 		bam = "{outputdir}/aln/{sample}_aln_q30_lenfilter.sorted.bam"
-	shell:
+	run:
 	#if se do one
 	#if pe do other
-		"bowtie2 --quiet --omit-sec-seq --no-discordant --no-unal -x {input.db} -1 {input.r1} -2	{input.r2} | "
-		"perl -lane '$l = 0; $F[5] =~ s/(\d+)[MX=DN]/$l+=$1/eg; print if $l > 60 or /^@/' | "
-		"samtools view -q 30 -bS - | "
-		"samtools sort -o {output.bam} - "
+		readlen=config["readlen"]
+		minreadlen = round(readlen * 0.8, 0)
+		if minreadlen < 70:
+			minreadlen = 70
+		if config["paired_end"]:
+			shell("bowtie2 --quiet --omit-sec-seq --no-discordant --no-unal -x {input.db} -1 {input.r1} -2	{input.r2} | "
+			"perl -lane '$l = 0; $F[5] =~ s/(\d+)[MX=DN]/$l+=$1/eg; print if $l > {minreadlen} or /^@/' | "
+			"samtools view -q 30 -bS - | "
+			"samtools sort -o {output.bam} - ")
+		else:
+			shell("bowtie2 --quiet --omit-sec-seq --no-discordant --no-unal -x {input.db} -U {input.r1} | "
+			"perl -lane '$l = 0; $F[5] =~ s/(\d+)[MX=DN]/$l+=$1/eg; print if $l > {minreadlen} or /^@/' | "
+			"samtools view -q 30 -bS - | "
+			"samtools sort -o {output.bam} - ")
 
 
 rule bam2fastq:
