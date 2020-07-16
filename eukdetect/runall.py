@@ -1,5 +1,6 @@
 
 from ete3 import NCBITaxa
+from datetime import datetime
 from pathlib import Path
 import logging
 import os
@@ -106,5 +107,10 @@ def main(argv=sys.argv):
 					  str(options.cores)]
 
 	logging.info("Running: " + " ".join(snakemake_args))
-	cmd = subprocess.run(snakemake_args)
+	timestamp = datetime.timestamp(datetime.now())
+	logging.info("Redirecting snakemake output to snakemake_" + str(timestamp) + ".log")
+
+	snakelog = open("snakemake_" + str(timestamp) + ".log", "w")
+	cmd = subprocess.run(snakemake_args, stdout=snakelog, stderr=snakelog)
+	logging.info("Snakemake complete")
 	exit(cmd.returncode)

@@ -16,7 +16,9 @@ setuptools.setup(
 		long_description_content_type="text/markdown",
 		license=license,
 		url="https://github.com/allind/EukDetect.git",
-		entry_points={"console_scripts": ["eukdetect-runall = eukdetect.runall:main"]},
+		entry_points={"console_scripts": ["eukdetect-runall = eukdetect.runall:main",
+										  "eukdetect-printaln = eukdetect.printaln:main",
+									       "eukdetect-aln = eukdetect.aln:main"]},
 		packages=setuptools.find_packages()
 )
 

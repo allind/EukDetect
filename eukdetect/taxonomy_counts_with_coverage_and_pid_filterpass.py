@@ -124,7 +124,7 @@ def main(argv):
 
 	#dest.close()
 	dest = open(sys.argv[6], 'w')
-	dest.write("Name\tTaxon_rank\tObserved_markers\tRead_counts\tPercent_observed_markers\tTotal_marker_coverage\tPercent_identity\n")
+	dest.write("Name\tObserved_markers\tRead_counts\tPercent_observed_markers\tTotal_marker_coverage\tPercent_identity\n")
 	marker_sorted = sorted(taxon_coverage.keys(), reverse = True, key = lambda x: taxon_coverage[x][3])
 
 	for tax in marker_sorted:
@@ -136,7 +136,6 @@ def main(argv):
 		overall_coverage = taxon_coverage[tax][4]
 		percent_identity = taxon_coverage[tax][5]
 		dest.write(name + '\t'
-			+ str(rank) + '\t' 
 			+ str(mc) + '\t' 
 			+ str(counts) + '\t' 
 			+ str(marker_percentage) + '%\t'

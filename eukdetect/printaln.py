@@ -93,9 +93,9 @@ def main(argv=sys.argv):
 			exit(1)
 		
 	#here we do the snakemake stuff
-	snakefile = Path(config_info["eukdetect_dir"] + "/rules/aln.rules")
+	snakefile = Path(config_info["eukdetect_dir"] + "/rules/printaln.rules")
 	if not snakefile.exists():
-		logging.error("Error: could not find /rules/aln.rules in eukdetect_dir specified in configfile.")
+		logging.error("Error: could not find /rules/printaln.rules in eukdetect_dir specified in configfile.")
 		exit(1)
 
 	snakemake_args = ['snakemake', 
