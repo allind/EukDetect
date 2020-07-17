@@ -29,7 +29,7 @@ python setup.py install
 
 **Edit the config file**
 
-Copy the default_configfile.yml to your_configfile.yml
+Copy the default_configfile.yml to your_configfile.yml. Change all parameters in the config file as described.
 
 **Run modes**
 
