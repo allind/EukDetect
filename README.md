@@ -1,6 +1,6 @@
 # EukDetect
 
-# Installation
+## Installation
 
 **Install conda**
 
@@ -13,7 +13,10 @@ Download this repository & download the Fishare repo
 git clone https://github.com/allind/EukDetect.git
 cd EukDetect
 ```
-Use whatever method you prefer to move the taxonomy_db folder to the project folder
+
+**Download EukDetect database from Figshare***
+
+
 
 **Create conda environment and install EukDetect**
 ```
@@ -22,14 +25,51 @@ conda activate eukdetect
 python setup.py install
 ```
 
-# Usage
+## Usage
 
 **Edit the config file**
+
 Copy the default_configfile.yml to your_configfile.yml
 
 **Run modes**
 
-Run whole pipeline
+A schematic of the eukdetect pipeline and the files created in the pipeline can be found in eukdetect_pipeline_schematic.pdf.
+
+There are four eukdetect modes, invoked with eukdetect --mode. All modes require a eukdetect config file as described above.
+
+The runall mode runs the entire pipeline. The aln mode runs just the bowtie2 alignment step, and the filter mode runs everything downstream of the alignment. The filter mode can only be run if the alignment step has been completed.
+
+The fourth mode is alncmd which creates a file in the output directory called alignment_commands.txt. These commands can be run on a compute cluster either sequentially or as a job array. The alignment step of eukdetect is the most computationally intensive step of eukdetect, and this mode is intended for users to run the alignments on a high performance compute cluster if desired.
+
+Examples of eukdetect usage:
+
 ```
-eukdetect-runall --configfile [config file] --cores [cores]
+eukdetect --mode runall --configfile [config file] --cores [cores]
+eukdetect --mode aln --configfile [config file] --cores [cores]
+eukdetect --mode filter --configfile [config file] --cores [cores]
+eukdetect --mode alncmd --configfile [config file] --cores [cores]
 ```
+
+## Taxonomy database version
+
+This is only necessary if you are getting errors from the ete3 package.
+
+The EukDetect pipeline uses the ete3 package to interface with the NCBI taxonomy database. In order for the EukDetect pipeline to run correctly, ete3 must use the NBCI taxonomy database corresponding to the January 14, 2020 taxonomy release. The Figshare repository for the EukDetect database has both the taxdump_1_14_2020.tar.gz file, as well as the ete3 taxa.sqlite database. By default, EukDetect tells ete3 to use the taxa.sqlite database provided here.
+
+It may be possible that updates to the ete3 package, or differences in operating systems, might result in ete3 not being able to correctly parse the taxa.sqlite database file. If this happens, users will need to create their own taxa.sqlite database from taxdump_1_14_2020.tar.gz. By default, ete3 saves this taxa.sqlite database in the installation directory of ete3, so this file will need to be moved into the EukDetect database directory. If you use ete3 in other situations, you may run the ete3 function update_taxonomy_database(), which will download the newest NCBI taxonomy database and overwrite the taxa.sqlite file. Therefore, this file needs to be moved to a location where it will not be overwritten.
+
+How to do this:
+
+'''
+conda activate eukdetect
+'''
+
+open a Python console and run the following code:
+'''
+from ete3 import NCBITaxa
+ncbi = NCBITaxa()
+ncbi.update_taxonomy_database(taxdump_file="taxdump_1_14_2020.tar.gz")
+exit()
+'''
+
+Now, remove the taxa.sqlite file from the database folder, and find the newly created taxa.sqlite. This file will be located in your home directory in ~/.etetoolkit/taxa.sqlite. Move this file into the EukDetect database folder.
