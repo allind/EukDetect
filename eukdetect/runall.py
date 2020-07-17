@@ -15,7 +15,7 @@ import subprocess
 
 def main(argv=sys.argv):
 
-	parser = argparse.ArgumentParser(description="Run full EukDetect pipeline.")
+	parser = argparse.ArgumentParser(description="Run EukDetect pipeline.")
 
 	parser.add_argument(
 		"--mode",
@@ -97,15 +97,17 @@ def main(argv=sys.argv):
 			logging.error("Error: could not locate database directory.")
 			exit(1)
 
-	#here we do the snakemake stuff
+	#check snakemake rules file
 	snakefile = Path(config_info["eukdetect_dir"] + "/rules/eukdetect.rules")
 	if not snakefile.exists():
-		logging.error("Error: could not find /rules/runall.rules in eukdetect_dir specified in configfile.")
+		logging.error("Error: could not find /rules/eukdetect.rules in eukdetect_dir specified in configfile.")
 		exit(1)
 
+	#check required inputs and required outputs for each mode
+
 	if options.mode == "runall":
-		alnmiss, alncontain = check_aln_output(config_info)
-		filtermiss, filtercontain = check_filter_output(config_info)
+		alncontain, alnmiss = check_aln_output(config_info)
+		filtercontain, filtermiss = check_filter_output(config_info)
 
 		if len(alncontain) > 0 or len(filtercontain) > 0:
 			remain = alncontain + filtercontain
@@ -127,7 +129,7 @@ def main(argv=sys.argv):
 						  str(options.cores)]
 
 	elif options.mode == "aln":
-		alnmiss, alncontain = check_aln_output(config_info)
+		alncontain, alnmiss = check_aln_output(config_info)
 		if len(alncontain) > 0:
 			if options.force:
 				logging.info("Removing previous output files in output directory ...")
@@ -171,6 +173,16 @@ def main(argv=sys.argv):
 
 	elif options.mode == "filter":
 		#make sure alignment files are where they are supposed to be
+		alncontain, alnmiss = check_aln_output(config_info)
+
+		if len(alnmiss) > 0:
+			logging.error("Missing required files from input step:")
+			for e in almiss:
+				logging.error("Missing: " + e)
+			exit(1)
+
+
+		#check for existing filter files
 		filtercontain, filtermiss = check_filter_output(config_info)
 		if len(filtercontain) > 0:
 			if options.force:
@@ -214,6 +226,7 @@ def main(argv=sys.argv):
 	#if alncmd replace the brackets with single quotes that snakemake improperly evalutes. would like to find alt solution
 
 	if cmd.returncode == 0:
+		#check output exists
 
 		if options.mode == "alncmd":	
 			if os.path.isfile(config_info["output_dir"] + "/alignment_commands.txt"):
@@ -242,7 +255,6 @@ def main(argv=sys.argv):
 			else:
 				logging.info("Snakemake pipeline created all files.")
 				exit(0)
-
 
 		elif options.mode == "runall":
 			acontains, amissing = check_aln_output(config_info)
