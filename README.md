@@ -56,7 +56,7 @@ eukdetect --mode alncmd --configfile [config file] --cores [cores]
 
 ## Taxonomy database version
 
-This is only necessary if you are getting errors from the ete3 package.
+**This section is only necessary to read if you are getting errors from the ete3 package.**
 
 The EukDetect pipeline uses the ete3 package to interface with the NCBI taxonomy database. In order for the EukDetect pipeline to run correctly, ete3 must use the NBCI taxonomy database corresponding to the January 14, 2020 taxonomy release. The Figshare repository for the EukDetect database has both the taxdump_1_14_2020.tar.gz file, as well as the ete3 taxa.sqlite database. By default, EukDetect tells ete3 to use the taxa.sqlite database provided here.
 
