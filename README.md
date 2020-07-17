@@ -60,16 +60,17 @@ It may be possible that updates to the ete3 package, or differences in operating
 
 How to do this:
 
-'''
+```
 conda activate eukdetect
-'''
+```
 
 open a Python console and run the following code:
-'''
+
+```
 from ete3 import NCBITaxa
 ncbi = NCBITaxa()
 ncbi.update_taxonomy_database(taxdump_file="taxdump_1_14_2020.tar.gz")
 exit()
-'''
+```
 
 Now, remove the taxa.sqlite file from the database folder, and find the newly created taxa.sqlite. This file will be located in your home directory in ~/.etetoolkit/taxa.sqlite. Move this file into the EukDetect database folder.
