@@ -14,7 +14,11 @@ git clone https://github.com/allind/EukDetect.git
 cd EukDetect
 ```
 
-**Download EukDetect database from Figshare***
+**Download EukDetect database from Figshare**
+
+Download and unpack the EukDetect database from the Figshare repository.
+
+
 
 
 
