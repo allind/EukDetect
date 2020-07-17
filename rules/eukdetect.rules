@@ -1,0 +1,208 @@
+
+#input files for each step
+
+
+
+rule all:
+	input:
+		expand("{output_dir}/aln/{sample}_aln_q30_lenfilter.sorted.bam", sample=config["samples"], output_dir=config["output_dir"]),
+		expand("{output_dir}/filtering/{sample}_aln_q30_lenfilter_complexityfilter_dupfilter.sorted.bam", sample=config["samples"], output_dir=config["output_dir"]),
+		expand("{output_dir}/filtering/{sample}_aln_q30_lenfilter_complexityfilter_dupfilter.sorted.bam.bai", sample=config["samples"], output_dir=config["output_dir"]),
+		expand("{output_dir}/filtering/{sample}_read_counts_and_mismatches.txt", sample=config["samples"], output_dir=config["output_dir"]), 
+		expand("{output_dir}/filtering/{sample}_hit_taxonomy.txt", sample=config["samples"], output_dir=config["output_dir"]), 
+		expand("{output_dir}/filtering/{sample}_all_stats_per_taxid.txt", sample=config["samples"], output_dir=config["output_dir"]), 
+		expand("{output_dir}/{sample}_hit_taxonomy_filterpass.txt", sample=config["samples"], output_dir=config["output_dir"]), 
+		expand("{output_dir}/{sample}_stats_per_filtered_taxid.txt", sample=config["samples"], output_dir=config["output_dir"])
+
+rule alncall:
+	input:
+		expand("{output_dir}/alignment_commands.txt", output_dir=config["output_dir"])
+
+rule printaln:
+	input:
+		db = expand("{tax_dir}/all_buscos_v4.fna", tax_dir=config["database_dir"]),
+		r1 = expand("{fq_dir}/{sample}{fwd_suffix}", fq_dir=config["fq_dir"], sample=config["samples"], fwd_suffix=config["fwd_suffix"]) if config["paired_end"] else expand("{fq_dir}/{{sample}}{se_suffix}", fq_dir=config["fq_dir"], se_suffix=config["se_suffix"]),
+		r2 = expand("{fq_dir}/{sample}{rev_suffix}", fq_dir=config["fq_dir"], sample=config["samples"], rev_suffix=config["rev_suffix"]) if config["paired_end"] else expand("{fq_dir}/{{sample}}{se_suffix}", fq_dir=config["fq_dir"], se_suffix=config["se_suffix"])
+	output:
+		expand("{output_dir}/alignment_commands.txt", output_dir=config["output_dir"])
+
+	params:
+		bam = expand("{output_dir}/aln/{sample}_aln_q30_lenfilter.sorted.bam", output_dir=config["output_dir"], sample=config["samples"])
+	run:
+
+
+		readlen=config["readlen"]
+		minreadlen = int(round(readlen * 0.8, 0))
+
+
+		if minreadlen < 60:
+			minreadlen = 60
+
+		if config["paired_end"]:
+			shell("""echo bowtie2 --quiet --omit-sec-seq --no-discordant --no-unal -x {input.db} -1 {input.r1} -2	{input.r2} \| """
+			"" "perl -lane {{'}}$l =0; $F[5] =~ s/(\d+)[MX=DN]/$l+=$1/eg; print if $l > {minreadlen} or /^@/{{'}} \| """
+			"""samtools view -q 30 -bS - \| """
+			"""samtools sort -o {params.bam} -  >> {output}""")
+		else:
+			shell("echo bowtie2 --quiet --omit-sec-seq --no-discordant --no-unal -x {input.db} -U {input.r1} \| "
+			"perl -lane {{\'}}$l = 0; $F[5] =~ s/(\d+)[MX=DN]/$l+=$1/eg; print if $l > {minreadlen} or /^@/{{\'}} \| "
+			"samtools view -q 30 -bS - \| "
+			"samtools sort -o {params.bam} - >> {output}")
+
+
+rule runaln:
+	input:
+		expand("{output_dir}/aln/{sample}_aln_q30_lenfilter.sorted.bam", sample=config["samples"], output_dir=config["output_dir"])
+
+rule aln:
+	input:
+		db = expand("{tax_dir}/all_buscos_v4.fna", tax_dir=config["database_dir"]),
+		r1 = expand("{fq_dir}/{{sample}}{fwd_suffix}", fq_dir=config["fq_dir"], fwd_suffix=config["fwd_suffix"]) if config["paired_end"] else expand("{fq_dir}/{{sample}}{se_suffix}", fq_dir=config["fq_dir"], se_suffix=config["se_suffix"]),
+		r2 = expand("{fq_dir}/{{sample}}{rev_suffix}", fq_dir=config["fq_dir"], rev_suffix=config["rev_suffix"]) if config["paired_end"] else expand("{fq_dir}/{{sample}}{se_suffix}", fq_dir=config["fq_dir"], se_suffix=config["se_suffix"])
+		#r1 = expand("{fq_dir}/{{sample}}{fwd_suffix}", fq_dir=config["fq_dir"], fwd_suffix=config["fwd_suffix"]),
+		#r2 = expand("{fq_dir}/{{sample}}{rev_suffix}", fq_dir=config["fq_dir"], rev_suffix=config["rev_suffix"])
+	output:
+		bam = "{output_dir}/aln/{sample}_aln_q30_lenfilter.sorted.bam"
+	run:
+		readlen=config["readlen"]
+		minreadlen = round(readlen * 0.8, 0)
+		if minreadlen < 60:
+			minreadlen = 60
+		if config["paired_end"]:
+			shell("bowtie2 --quiet --omit-sec-seq --no-discordant --no-unal -x {input.db} -1 {input.r1} -2	{input.r2} | "
+			"perl -lane '$l = 0; $F[5] =~ s/(\d+)[MX=DN]/$l+=$1/eg; print if $l > {minreadlen} or /^@/' | "
+			"samtools view -q 30 -bS - | "
+			"samtools sort -o {output.bam} - ")
+		else:
+			shell("bowtie2 --quiet --omit-sec-seq --no-discordant --no-unal -x {input.db} -U {input.r1} | "
+			"perl -lane '$l = 0; $F[5] =~ s/(\d+)[MX=DN]/$l+=$1/eg; print if $l > {minreadlen} or /^@/' | "
+			"samtools view -q 30 -bS - | "
+			"samtools sort -o {output.bam} - ")
+
+rule filter:
+	input:
+		expand("{output_dir}/filtering/{sample}_aln_q30_lenfilter_complexityfilter_dupfilter.sorted.bam", sample=config["samples"], output_dir=config["output_dir"]),
+		expand("{output_dir}/filtering/{sample}_aln_q30_lenfilter_complexityfilter_dupfilter.sorted.bam.bai", sample=config["samples"], output_dir=config["output_dir"]),
+		expand("{output_dir}/filtering/{sample}_read_counts_and_mismatches.txt", sample=config["samples"], output_dir=config["output_dir"]), 
+		expand("{output_dir}/filtering/{sample}_hit_taxonomy.txt", sample=config["samples"], output_dir=config["output_dir"]), 
+		expand("{output_dir}/filtering/{sample}_all_stats_per_taxid.txt", sample=config["samples"], output_dir=config["output_dir"]), 
+		expand("{output_dir}/{sample}_hit_taxonomy_filterpass.txt", sample=config["samples"], output_dir=config["output_dir"]), 
+		expand("{output_dir}/{sample}_stats_per_filtered_taxid.txt", sample=config["samples"], output_dir=config["output_dir"])
+
+
+rule bam2fastq:
+	input:
+		bam = "{output_dir}/aln/{sample}_aln_q30_lenfilter.sorted.bam"
+	output:
+		temp("{output_dir}/aln/{sample}_aln_q30_lenfilter.fq")
+	shell:
+		"bedtools bamtofastq -i {input.bam} -fq {output}"
+
+rule find_low_complexity:
+	input:
+		fq = "{output_dir}/aln/{sample}_aln_q30_lenfilter.fq"
+	output:
+		temp("{output_dir}/aln/{sample}_low_complexity.txt")
+		
+	shell:
+		"cat {input.fq} | kz | awk '{{ if ($4<0.5) print $1 }}' > {output}"
+
+rule remove_low_complexity:
+	input:
+		inbam = "{output_dir}/aln/{sample}_aln_q30_lenfilter.sorted.bam",
+		drop_complex ="{output_dir}/aln/{sample}_low_complexity.txt"
+	output:
+		temp("{output_dir}/aln/{sample}_aln_q30_lenfilter_complexity.sorted.bam")
+	shell:
+		"samtools view -h {input.inbam} | grep -v -f {input.drop_complex} | samtools view -bS - > {output}"
+
+#rule rmdup:
+#	input:
+#		inbam = "{output_dir}/aln/{sample}_aln_q30_lenfilter_complexity.sorted.bam"
+#	output:
+#		tmpbam = "{output_dir}/aln/{sample}_aln_q30_lenfilter_complexity_fixmate.sorted.bam",
+#		outbam = "{output_dir}/aln/{sample}_aln_q30_lenfilter_complexity_rmdup.bam",
+#		outsort = "{output_dir}/aln/{sample}_aln_q30_lenfilter_complexity_rmdup.sorted.bam",
+#		stats = "{output_dir}/aln/{sample}_dupremove_stats.txt"
+#	shell:
+#		"""
+#		samtools sort -n {input.inbam} | samtools fixmate -m - {output.tmpbam}
+#		samtools sort {output.tmpbam} | samtools markdup -r -s -f {output.stats} - {output.outbam}
+#		samtools sort -o {output.outsort} {output.outbam} 
+#		"""		
+rule fixmate:
+	input:
+		inbam = "{output_dir}/aln/{sample}_aln_q30_lenfilter_complexity.sorted.bam"
+	output:
+		temp("{output_dir}/filtering/{sample}_aln_q30_lenfilter_complexity_fixmate.bam")
+	shell:
+		"""
+		samtools sort -n {input.inbam} | samtools fixmate -m - {output}
+
+		"""
+rule markdup:
+	input:
+		"{output_dir}/filtering/{sample}_aln_q30_lenfilter_complexity_fixmate.bam"
+	output:
+		temp("{output_dir}/filtering/{sample}_aln_q30_lenfilter_complexity_rmdup.bam")
+	shell:
+		"""
+		samtools sort {input} | samtools markdup -r -s - {output}
+
+		"""
+rule rmsort:
+	input:
+		"{output_dir}/filtering/{sample}_aln_q30_lenfilter_complexity_rmdup.bam"
+	output:
+		"{output_dir}/filtering/{sample}_aln_q30_lenfilter_complexityfilter_dupfilter.sorted.bam"
+
+	shell:
+		"""
+		samtools sort -o {output} {input}
+		"""	
+
+rule index:
+	input:
+		bam = "{output_dir}/filtering/{sample}_aln_q30_lenfilter_complexityfilter_dupfilter.sorted.bam"
+	output:
+		bai = "{output_dir}/filtering/{sample}_aln_q30_lenfilter_complexityfilter_dupfilter.sorted.bam.bai"
+		
+	shell:
+		"samtools index {input.bam} {output.bai}"
+
+rule countreads:
+	input:
+		bam = "{output_dir}/filtering/{sample}_aln_q30_lenfilter_complexityfilter_dupfilter.sorted.bam",
+		bai = "{output_dir}/filtering/{sample}_aln_q30_lenfilter_complexityfilter_dupfilter.sorted.bam.bai",
+		countscript = expand("{eukdetect_dir}/eukdetect/bam_to_pid.py", eukdetect_dir=config["eukdetect_dir"]),
+		ref = expand("{tax_dir}/all_buscos_v4.fna", tax_dir=config["database_dir"])
+	output:
+		counts = "{output_dir}/filtering/{sample}_read_counts_and_mismatches.txt"
+	shell:
+		"python {input.countscript} {input.bam} {input.ref} > {output.counts}"
+
+rule taxonomize:
+	input:
+		counts = "{output_dir}/filtering/{sample}_read_counts_and_mismatches.txt",
+		script = expand("{eukdetect_dir}/eukdetect/taxonomy_counts_with_coverage_and_pid.py", eukdetect_dir=config["eukdetect_dir"]),
+		taxid_link = expand("{tax_dir}/busco_taxid_link.txt", tax_dir=config["database_dir"]),
+		inherited_markers = expand("{tax_dir}/specific_and_inherited_markers_per_taxid.txt", tax_dir=config["database_dir"]),
+		taxdb = expand("{tax_dir}/taxa.sqlite", tax_dir=config["database_dir"])
+	output:
+		taxonomy ="{output_dir}/filtering/{sample}_hit_taxonomy.txt",
+		readcounts = "{output_dir}/filtering/{sample}_all_stats_per_taxid.txt"
+	shell:
+		"python {input.script} {input.taxid_link} {input.taxdb} {input.inherited_markers} {input.counts} {output.taxonomy} {output.readcounts}"
+
+rule filterpass:
+	input:
+		counts = "{output_dir}/filtering/{sample}_read_counts_and_mismatches.txt",
+		script = expand("{eukdetect_dir}/eukdetect/taxonomy_counts_with_coverage_and_pid_filterpass.py", eukdetect_dir=config["eukdetect_dir"]),
+		taxid_link = expand("{tax_dir}/busco_taxid_link.txt", tax_dir=config["database_dir"]),
+		inherited_markers = expand("{tax_dir}/specific_and_inherited_markers_per_taxid.txt", tax_dir=config["database_dir"]),
+		taxdb = expand("{tax_dir}/taxa.sqlite", tax_dir=config["database_dir"])
+	output:
+		taxonomy ="{output_dir}/{sample}_hit_taxonomy_filterpass.txt",
+		readcounts = "{output_dir}/{sample}_stats_per_filtered_taxid.txt"
+	shell:
+		"python {input.script} {input.taxid_link} {input.taxdb} {input.inherited_markers} {input.counts} {output.taxonomy} {output.readcounts}"
