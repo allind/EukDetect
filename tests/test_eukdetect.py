@@ -10,7 +10,7 @@ def run(command):
 	process = subprocess.run(shlex.split(command), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	return(process.returncode, process.stdout, process.stderr)
 
-class _HelpText(unittest.TestCase):
+class _01_HelpText(unittest.TestCase):
 
 	def test_class(self):
 		command = "eukdetect -h"
@@ -18,20 +18,20 @@ class _HelpText(unittest.TestCase):
 		self.assertTrue(code == 0, msg=stdout)
 
 
-class _RunRunall(unittest.TestCase):
+class _02_RunRunall(unittest.TestCase):
 	def test_class(self):
 		command = 'eukdetect --mode runall --configfile tests/test_se_configfile.yml --force'
 		code, stdout, stderr = run(command)
 		self.assertTrue(code==0, msg=stderr)
 
-class _RunAln(unittest.TestCase):
+class _03_RunAln(unittest.TestCase):
 
 	def test_class(self):
 		command = 'eukdetect --mode aln --configfile tests/test_se_configfile.yml --force'
 		code, stdout, stderr = run(command)
 		self.assertTrue(code==0, msg=stderr)
 
-class _RunAlncmd(unittest.TestCase):
+class _04_RunAlncmd(unittest.TestCase):
 
 	def test_class(self):
 		command = 'eukdetect --mode alncmd --configfile tests/test_se_configfile.yml --force'
@@ -39,7 +39,7 @@ class _RunAlncmd(unittest.TestCase):
 		self.assertTrue(code==0, msg=stderr)
 
 
-class _RunFilter(unittest.TestCase):
+class _05_RunFilter(unittest.TestCase):
 
 	def test_class(self):
 		command = 'eukdetect --mode filter --configfile tests/test_se_configfile.yml --force'

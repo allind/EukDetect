@@ -1,6 +1,6 @@
 #Default config file for eukdetect. Copy and edit for analysis
 
-output_dir: "/pollard/data/projects/eukdetect/midas_testing/busco_v4/eukdetect_repo/analysis" #directory where output should be written
+output_dir: "/pollard/data/projects/eukdetect/midas_testing/busco_v4/eukdetect_repo/test_figshare" #directory where output should be written
     
 paired_end: true #true or false
 
@@ -10,7 +10,7 @@ se_suffix: ".fastq.gz" #file name excluding sample name. no need to edit if pair
 readlen: 125 #targeted length of your reads. pre-trimming reads not recommended
 
 fq_dir: "/pollard/data/projects/eukdetect/midas_testing/busco_v4/eukdetect_repo/test_data" #full path to directory with raw fastq files
-database_dir: "/pollard/data/projects/eukdetect/midas_testing/busco_v4/eukdetect_repo/databases" #full path to folder with all eukdetect_db files and taxdump.tar.gz file
+database_dir: "/pollard/data/projects/eukdetect/midas_testing/busco_v4/eukdetect_repo/test_figshare/eukdetect_database_v1" #full path to folder with all eukdetect_db files and taxdump.tar.gz file
 
 eukdetect_dir: "/pollard/data/projects/eukdetect/midas_testing/busco_v4/eukdetect_repo/EukDetect"
 
