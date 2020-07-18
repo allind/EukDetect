@@ -3,26 +3,45 @@
 
 from datetime import datetime
 from pathlib import Path
-#from check_output import check_aln_output, check_filter_output
-#from eukdetect import check_output as chk
 import logging
 import os
 import sys
 import yaml
 import argparse
 import subprocess
+import textwrap
 
 
 def main(argv=sys.argv):
 
-	parser = argparse.ArgumentParser(description="Run EukDetect pipeline.")
+	parser = argparse.ArgumentParser(
+		description=textwrap.dedent("""\
+			Run the EukDetect pipeline.
+
+			Required arguments are --mode and --config.
+
+			Modes:
+				runall: runs entire pipeline.
+
+				aln: only runs alignment step of pipeline.
+
+				filter: runs all downstream analysis of alignment. 
+					Requires alignment files to already exist.
+
+				alncmd: prints alignment commands to alignment_commands.txt.
+
+
+			For a schematic on EukDetect modes, see eukdetect_pipeline_schematic.pdf
+			"""),
+		formatter_class = argparse.RawDescriptionHelpFormatter
+		)
 
 	parser.add_argument(
 		"--mode",
 		type=str,
 		action="store",
 		dest="mode",
-		help="Run mode: choose from runall, aln, alncmd, or filter.",
+		help= "Run mode: choose from runall, aln, alncmd, or filter.",
 		required=True
 		)
 
@@ -31,7 +50,7 @@ def main(argv=sys.argv):
 		type=str,
 		action="store",
 		dest="config",
-		help="EukDetect config file (see default_configfile.yml)",
+		help="EukDetect config file (see example in default_configfile.yml)",
 		required=True
 		)
 
@@ -40,7 +59,7 @@ def main(argv=sys.argv):
 		type=int,
 		action="store",
 		dest="cores",
-		help="Number of cores to use",
+		help="Number of cores to use for Snakemake analysis. Default is 1 core.",
 		default=1
 		)
 
@@ -72,7 +91,7 @@ def main(argv=sys.argv):
 			logging.error("Read length is below minimum 75 bp")
 			exit(1)
 
-		#check the database
+		#check the database exists
 		db_files = ["all_buscos_v4.fna.1.bt2", 
 					"all_buscos_v4.fna.2.bt2", 
 					"all_buscos_v4.fna.3.bt2", 
@@ -97,17 +116,25 @@ def main(argv=sys.argv):
 			logging.error("Error: could not locate database directory.")
 			exit(1)
 
-	#check snakemake rules file
+	#check snakemake rules file exists
 	snakefile = Path(config_info["eukdetect_dir"] + "/rules/eukdetect.rules")
 	if not snakefile.exists():
 		logging.error("Error: could not find /rules/eukdetect.rules in eukdetect_dir specified in configfile.")
 		exit(1)
 
-	#check required inputs and required outputs for each mode
+	#check required inputs and required outputs
 
 	if options.mode == "runall":
+
 		alncontain, alnmiss = check_aln_output(config_info)
 		filtercontain, filtermiss = check_filter_output(config_info)
+		fastacontain, fastamiss = check_fastas(config_info)
+
+		if len(fastamiss) > 0:
+			logging.error("Error: missing input fasta files ...")
+			for e in fastamiss:
+				logging.error("Missing: " + e)
+			exit(1)
 
 		if len(alncontain) > 0 or len(filtercontain) > 0:
 			remain = alncontain + filtercontain
@@ -120,6 +147,9 @@ def main(argv=sys.argv):
 				logging.error("\n".join(remain))
 				exit(1)
 
+
+		#check fastas exist
+
 		snakemake_args = ['snakemake', 
 						  '--snakefile', 
 						  str(snakefile), 
@@ -130,6 +160,14 @@ def main(argv=sys.argv):
 
 	elif options.mode == "aln":
 		alncontain, alnmiss = check_aln_output(config_info)
+		fastacontain, fastamiss = check_fastas(config_info)
+
+		if len(fastamiss) > 0:
+			logging.error("Error: missing input fasta files ...")
+			for e in fastamiss:
+				logging.error("Missing: " + e)
+			exit(1)
+
 		if len(alncontain) > 0:
 			if options.force:
 				logging.info("Removing previous output files in output directory ...")
@@ -149,6 +187,13 @@ def main(argv=sys.argv):
 						  ]
 
 	elif options.mode == "alncmd":
+		fastacontain, fastamiss = check_fastas(config_info)
+
+		if len(fastamiss) > 0:
+			logging.error("Error: missing input fasta files ...")
+			for e in fastamiss:
+				logging.error("Missing: " + e)
+			exit(1)
 
 		#remove old alignment commands file if it exists
 		if os.path.isfile(config_info["output_dir"] + "/alignment_commands.txt"):
@@ -221,14 +266,11 @@ def main(argv=sys.argv):
 	logging.info("Snakemake complete")
 
 
-	
-	
-	#if alncmd replace the brackets with single quotes that snakemake improperly evalutes. would like to find alt solution
-
 	if cmd.returncode == 0:
-		#check output exists
+		#check correct output exists
 
-		if options.mode == "alncmd":	
+		if options.mode == "alncmd":
+			#if alncmd replace the brackets with single quotes that snakemake improperly evalutes. would like to find alt solution	
 			if os.path.isfile(config_info["output_dir"] + "/alignment_commands.txt"):
 				newcmds = []
 				for line in open(config_info["output_dir"] + "/alignment_commands.txt"):
@@ -293,7 +335,7 @@ def main(argv=sys.argv):
 
 
 
-#output checking function
+#output checking functions
 
 def check_aln_output(config_info):
 
@@ -334,4 +376,32 @@ def check_filter_output(config_info):
 				contains.append(f)
 			else:
 				missing.append(f)
+	return contains, missing
+
+def check_fastas(config_info):
+	samples = config_info["samples"].keys()
+	contains = []
+	missing = []
+	path = config_info["fq_dir"] + "/"
+	if config_info["paired_end"]:
+		for sample in samples:
+			fwd = path + sample + config_info["fwd_suffix"]
+			rev = path + sample + config_info["rev_suffix"]
+			if os.path.isfile(fwd):
+				contains.append(fwd)
+			else:
+				missing.append(fwd)
+
+			if os.path.isfile(rev):
+				contains.append(rev)
+			else:
+				missing.append(rev)
+	else:
+		for sample in samples:
+			read = path + sample + config_info["se_suffix"]
+			if os.path.isfile(read):
+				contains.append(read)
+			else:
+				contains.append(read)
+
 	return contains, missing
