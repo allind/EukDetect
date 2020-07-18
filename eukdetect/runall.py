@@ -222,7 +222,7 @@ def main(argv=sys.argv):
 
 		if len(alnmiss) > 0:
 			logging.error("Missing required files from input step:")
-			for e in almiss:
+			for e in alnmiss:
 				logging.error("Missing: " + e)
 			exit(1)
 
