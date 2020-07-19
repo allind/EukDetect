@@ -1,21 +1,34 @@
 #Default config file for eukdetect. Copy and edit for analysis
 
+#Directory where EukDetect output should be written
+output_dir: "/path/to/analysis" 
+  
+#Indicate whether reads are paired (true) or single (false)
+paired_end: true 
 
-output_dir: "/path/to/analysis" #directory where output should be written
-    
-paired_end: true #true or false
+#filename excluding sample name. no need to edit if paired_end = false
+fwd_suffix: "_1.fastq.gz" 
 
-fwd_suffix: "_1.fastq.gz" #filename excluding sample name. no need to edit if paired_end= false
-rev_suffix: "_2.fastq.gz" #filename excludign sample name. no need to edit if paired_end = false
-se_suffix: ".fastq.gz" #file name excluding sample name. no need to edit if paired_end = true
-readlen: 125 #targeted length of your reads. pre-trimming reads not recommended
+#filename excludign sample name. no need to edit if paired_end = false
+rev_suffix: "_2.fastq.gz"
 
-fq_dir: "/path/to/fastq" #full path to directory with raw fastq files
-database_dir: "/path/to/eukdetect/databases" #full path to folder with all eukdetect_db files and taxa.sqlite file
+#file name excluding sample name. no need to edit if paired_end = true 
+se_suffix: ".fastq.gz" 
 
-eukdetect_dir: "/path/to/eukdetect_install/" #full path to eukdetect installation folder
+#length of your reads. pre-trimming reads not recommended
+readlen: 125
 
+#full path to directory with raw fastq files
+fq_dir: "/path/to/fastq"
 
-samples: #list sample names here. fastqs must correspond to {samplename}{se_suffix} for SE reads or {samplename}{fwd_suffix} and {samplename}{rev_suffix} for PE
+#full path to folder with all eukdetect_db files
+database_dir: "/path/to/eukdetect/databases" 
+
+#full path to eukdetect installation folder
+eukdetect_dir: "/path/to/eukdetect_install/" 
+
+#list sample names here. fastqs must correspond to {samplename}{se_suffix} for SE reads or {samplename}{fwd_suffix} and {samplename}{rev_suffix} for PE
+#each sample name should be preceded by 2 spaces and followed by a colon character
+samples: 
   sample1:
   sample2:
