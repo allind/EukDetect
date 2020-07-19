@@ -18,9 +18,14 @@ cd EukDetect
 
 Download and unpack the EukDetect database from the Figshare repository.
 
+The EukDetect database is located at: https://doi.org/10.6084/m9.figshare.12670856.v3
 
+Download the tarball and extract it.
+```
+tar -zxvf eukdetect_database_v1.tar.gz
+```
 
-
+The uncompressed database folder is 2.6 Gb in size.
 
 **Create conda environment and install EukDetect**
 ```
