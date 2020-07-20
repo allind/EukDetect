@@ -18,9 +18,14 @@ cd EukDetect
 
 Download and unpack the EukDetect database from the Figshare repository.
 
+The EukDetect database is located at: https://doi.org/10.6084/m9.figshare.12670856.v3
 
+Download the tarball and extract it.
+```
+tar -zxvf eukdetect_database_v1.tar.gz
+```
 
-
+The uncompressed database folder is 2.6 Gb in size.
 
 **Create conda environment and install EukDetect**
 ```
@@ -57,6 +62,11 @@ eukdetect --mode aln --configfile [config file] --cores [cores]
 eukdetect --mode filter --configfile [config file] --cores [cores]
 eukdetect --mode alncmd --configfile [config file] --cores [cores]
 ```
+
+**Eukdetect information**
+Currently, EukDetect only supports analysis of reads that are over 75 base pairs long.
+
+For more information about EukDetect, please see the biorxiv manuscript: [link coming soon]
 
 ## Taxonomy database version
 
