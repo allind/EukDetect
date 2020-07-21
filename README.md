@@ -4,7 +4,7 @@
 
 **Install conda**
 
-If you do not have the conda package manager installed already, you will need to install it. Follow the instructions for that here: https://docs.conda.io/projects/conda/en/latest/user-guide/install/
+If you do not have the conda package manager installed already, follow the [instructions](https://docs.conda.io/projects/conda/en/latest/user-guide/install/) to install Miniconda.
 
 **Download this repository**
 
@@ -16,21 +16,22 @@ cd EukDetect
 
 **Download EukDetect database from Figshare**
 
-Download and unpack the EukDetect database from the Figshare repository.
+Download and unpack the EukDetect database (eukdetect_database_v1.tar.gz) from the [Figshare repository](https://doi.org/10.6084/m9.figshare.12670856.v3).
 
-The EukDetect database is located at: https://doi.org/10.6084/m9.figshare.12670856.v3
-
-Download the tarball and extract it.
 ```
+wget https://ndownloader.figshare.com/files/23956007 
 tar -zxvf eukdetect_database_v1.tar.gz
+rm 23956007
 ```
 
 The uncompressed database folder is 2.6 Gb in size.
 
 **Create conda environment and install EukDetect**
+
 ```
-conda env create -n eukdetect -f environment.yml
+conda env update --name eukdetect -f environment.yml
 conda activate eukdetect
+# install eukdetect
 python setup.py install
 ```
 
@@ -38,13 +39,13 @@ python setup.py install
 
 **Edit the config file**
 
-Copy the default_configfile.yml to your_configfile.yml. Change all parameters in the config file as described.
+Copy the `default_configfile.yml` to `your_configfile.yml`. Change all parameters in the config file as described.
 
 **Run modes**
 
 A schematic of the eukdetect pipeline and the files created in the pipeline can be found in [eukdetect_pipeline_schematic.pdf](https://github.com/allind/EukDetect/blob/master/eukdetect_pipeline_schematic.pdf).
 
-There are four eukdetect modes, invoked with eukdetect --mode. All modes require a eukdetect config file as described above.
+There are *four* eukdetect modes, invoked with `eukdetect --mode`. All modes require a eukdetect config file as described above.
 
 The **runall** mode runs the entire pipeline. 
 
@@ -64,9 +65,11 @@ eukdetect --mode alncmd --configfile [config file] --cores [cores]
 ```
 
 **Eukdetect information**
+
 Currently, EukDetect only supports analysis of reads that are over 75 base pairs long.
 
-For more information about EukDetect, please see the biorxiv manuscript: [link coming soon]
+For more information about EukDetect, please see the [biorxiv manuscript](link coming soon).
+
 
 ## Taxonomy database version
 
