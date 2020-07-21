@@ -42,7 +42,7 @@ Copy the default_configfile.yml to your_configfile.yml. Change all parameters in
 
 **Run modes**
 
-A schematic of the eukdetect pipeline and the files created in the pipeline can be found in eukdetect_pipeline_schematic.pdf.
+A schematic of the eukdetect pipeline and the files created in the pipeline can be found in [eukdetect_pipeline_schematic.pdf](https://github.com/allind/EukDetect/blob/master/eukdetect_pipeline_schematic.pdf).
 
 There are four eukdetect modes, invoked with eukdetect --mode. All modes require a eukdetect config file as described above.
 
