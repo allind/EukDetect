@@ -19,9 +19,9 @@ cd EukDetect
 Download and unpack the EukDetect database (eukdetect_database_v1.tar.gz) from the [Figshare repository](https://doi.org/10.6084/m9.figshare.12670856.v3).
 
 ```
-wget https://ndownloader.figshare.com/files/23956007 
-tar -zxvf 23956007
-rm 23956007
+wget https://ndownloader.figshare.com/files/24012515 
+tar -zxvf 24012515
+rm 24012515
 ```
 
 The uncompressed database folder is 2.6 Gb in size.
