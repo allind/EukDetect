@@ -75,9 +75,9 @@ For more information about EukDetect, please see the [biorxiv manuscript](link c
 
 **This section is only necessary to read if you are getting errors from the ete3 package.**
 
-The EukDetect pipeline uses the ete3 package to interface with the NCBI taxonomy database. In order for the EukDetect pipeline to run correctly, ete3 must use the NBCI taxonomy database corresponding to the January 14, 2020 taxonomy release. The Figshare repository for the EukDetect database has both the taxdump_1_14_2020.tar.gz file, as well as the ete3 taxa.sqlite database. By default, EukDetect tells ete3 to use the taxa.sqlite database provided here.
+The EukDetect pipeline uses the ete3 package to interface with the NCBI taxonomy database. In order for the EukDetect pipeline to run correctly, ete3 must use the NBCI taxonomy database corresponding to the January 14, 2020 taxonomy release. The Figshare repository for the EukDetect database has both the taxdump_1_14_2020.tar.gz file, as well as the ete3 sqlite database (in files taxa.sqlite and taxa.sqlite.traverse.pkl). EukDetect uses the database located in this folder.
 
-It may be possible that updates to the ete3 package, or differences in operating systems, might result in ete3 not being able to correctly parse the taxa.sqlite database file. If this happens, users will need to create their own taxa.sqlite database from taxdump_1_14_2020.tar.gz. By default, ete3 saves this taxa.sqlite database in the installation directory of ete3, so this file will need to be moved into the EukDetect database directory. If you use ete3 in other situations, you may run the ete3 function update_taxonomy_database(), which will download the newest NCBI taxonomy database and overwrite the taxa.sqlite file. Therefore, this file needs to be moved to a location where it will not be overwritten.
+It may be possible that updates to the ete3 package, or differences in operating systems, might result in ete3 not being able to correctly parse the database. If this happens, users will need to create their own taxonomy database from taxdump_1_14_2020.tar.gz. By default, ete3 saves the taxonomy database in ~/.etetoolkit in the home directory of the user, so this file will need to be moved into the EukDetect database directory. If you use ete3 outside of EukDetect, you may run the ete3 function update_taxonomy_database(), which will download the newest NCBI taxonomy database and overwrite the taxonomy database in ~/.etetoolkit. Therefore, this file needs to be moved to a location where it will not be overwritten.
 
 How to do this:
 
@@ -94,4 +94,4 @@ ncbi.update_taxonomy_database(taxdump_file="taxdump_1_14_2020.tar.gz")
 exit()
 ```
 
-Now, remove the taxa.sqlite file from the database folder, and find the newly created taxa.sqlite. This file will be located in your home directory in ~/.etetoolkit/taxa.sqlite. Move this file into the EukDetect database folder.
+Now, remove the taxa.sqlite and taxa.sqlite.traverse.pkl file from the database folder, and find the newly created taxa.sqlite and taxa.sqlite.traverse.pkl files. This file will be located in your home directory in ~/.etetoolkit/. Move these file into the EukDetect database folder.
