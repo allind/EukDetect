@@ -20,7 +20,7 @@ Download and unpack the EukDetect database (eukdetect_database_v1.tar.gz) from t
 
 ```
 wget https://ndownloader.figshare.com/files/23956007 
-tar -zxvf eukdetect_database_v1.tar.gz
+tar -zxvf 23956007
 rm 23956007
 ```
 
