@@ -1,4 +1,4 @@
-name: eukdetect
+name: null
 channels:
   - eclarke
   - conda-forge
@@ -13,6 +13,7 @@ dependencies:
   - async-timeout=3.0.1=py_1000
   - attrs=19.3.0=py_0
   - bcrypt=3.1.7=py36h8c4c3a4_1
+  - bedtools=2.29.2=hc088bd4_0
   - biopython=1.70=np112py36_1
   - blas=1.1=openblas
   - boto3=1.14.20=pyh9f0ad1d_0
@@ -179,5 +180,4 @@ dependencies:
     - pyqt5-sip==4.19.18
     - pyqtchart==5.12
     - pyqtwebengine==5.12.1
-prefix: /pollard/home/alind/miniconda3/envs/eukdetect
 
