@@ -98,7 +98,9 @@ def main(argv=sys.argv):
 					"all_buscos_v4.fna.4.bt2", 
 					"all_buscos_v4.fna.rev.1.bt2", 
 					"all_buscos_v4.fna.rev.2.bt2",
-					"taxa.sqlite"]
+					"taxa.sqlite",
+					"taxa.sqlite.traverse.pkl"
+					]
 
 		if os.path.isdir(config_info["database_dir"]):
 			seen_sql = False
@@ -143,7 +145,7 @@ def main(argv=sys.argv):
 				for f in remain:
 					os.remove(f)
 			else:
-				logging.error("Error: output files exist in output directory...")
+				logging.error("Error: output files exist in output directory. Rerun EukDetect with --force to overwrite.")
 				logging.error("\n".join(remain))
 				exit(1)
 
@@ -172,7 +174,7 @@ def main(argv=sys.argv):
 			if options.force:
 				logging.info("Removing previous output files in output directory ...")
 			else:
-				logging.error("Error: output files exist in output directory...")
+				logging.error("Error: output files exist in output directory. Rerun EukDetect with --force to overwrite.")
 				logging.error("\n".join(alncontain))
 				exit(1)
 
@@ -201,7 +203,7 @@ def main(argv=sys.argv):
 				logging.info("Removing previous alignment command file in output directory ...")
 				os.remove(config_info["output_dir"] + "/alignment_commands.txt")
 			else:
-				logging.error("Output directory already has alignment_commands.txt file.")
+				logging.error("Output directory already has alignment_commands.txt file. Rerun EukDetect with --force to overwrite.")
 				exit(1)
 
 		snakemake_args = ['snakemake', 
@@ -235,7 +237,7 @@ def main(argv=sys.argv):
 				for e in filtercontain:
 					os.remove(e)
 			else:
-				logging.error("Error: output files exist in output directory. Shutting down.")
+				logging.error("Error: output files exist in output directory. Rerun EukDetect with --force to overwrite.")
 				for e in filtercontain:
 					logging.error(e)
 				exit(1)
@@ -284,13 +286,13 @@ def main(argv=sys.argv):
 				exit(0)
 
 			else:
-				logging.error("Something went wrong with printing alignment commands. Check logs")
+				logging.error("Something went wrong with printing alignment commands. Check logs.")
 				exit(1)
 
 		elif options.mode == "aln":
 			contains, missing = check_aln_output(config_info)
 			if len(missing) > 0:
-				logging.error("Something went wrong with alignment. Files are missing. Check snakemake logs.")
+				logging.error("Something went wrong with alignment. Files are missing. Check logs.")
 				for e in missing:
 					logging.error("Missing: " + e)
 				exit(1)
@@ -304,7 +306,7 @@ def main(argv=sys.argv):
 			contains = acontains + fcontains
 			missing = amissing + fmissing
 			if len(missing) > 0:
-				logging.error("Something went wrong. Files are missing. Check snakemake logs.")
+				logging.error("Something went wrong. Files are missing. Check logs.")
 				for e in missing:
 					logging.error("Missing: " + e)
 				exit(1)
