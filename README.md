@@ -16,7 +16,7 @@ cd EukDetect
 
 **Download EukDetect database from Figshare**
 
-Download and unpack the EukDetect database (eukdetect_database_v1.tar.gz) from the [Figshare repository](https://doi.org/10.6084/m9.figshare.12670856.v3).
+Download and unpack the EukDetect database (eukdetect_database_v1.tar.gz) from the [Figshare repository](https://doi.org/10.6084/m9.figshare.12670856.v4).
 
 ```
 wget https://ndownloader.figshare.com/files/24012515 
