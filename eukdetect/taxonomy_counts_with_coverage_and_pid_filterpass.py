@@ -53,7 +53,7 @@ def main(argv):
 		#	seen_taxids.append(int(taxid))
 
 	if counter == 0:
-		message = "Error: empty read count file. Likely no aligned reads in sample."
+		message = "Empty read count file. Likely no aligned reads in sample."
 		print(message)
 		#still have to write stuff
 		f = open(sys.argv[5], 'w')
