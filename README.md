@@ -73,6 +73,10 @@ Currently, EukDetect only supports analysis of reads that are **over** 75 base p
 For more information about EukDetect, please see the [biorxiv manuscript](link coming soon).
 
 
+## Output file descriptions
+
+More info coming soon.
+
 ## Taxonomy database version
 
 **This section is only necessary to read if you are getting errors from the ete3 package.**
