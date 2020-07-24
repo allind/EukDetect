@@ -70,7 +70,7 @@ eukdetect --mode alncmd --configfile [config file] --cores [cores]
 
 Currently, EukDetect only supports analysis of reads that are **over** 75 base pairs long.
 
-For more information about EukDetect, please see the [biorxiv manuscript](link coming soon).
+For more information about EukDetect, please see the [biorxiv manuscript](https://www.biorxiv.org/content/10.1101/2020.07.22.216580v1).
 
 
 ## Output file descriptions
