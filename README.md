@@ -35,6 +35,11 @@ conda activate eukdetect
 python setup.py install
 ```
 
+**Test installation***
+
+More info coming soon.
+
+
 ## Usage
 
 **Edit the config file**
