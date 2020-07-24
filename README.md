@@ -77,6 +77,16 @@ For more information about EukDetect, please see the [biorxiv manuscript](https:
 
 More info coming soon.
 
+## Citation
+
+If you use EukDetect, please cite our [preprint on biorxiv](https://www.biorxiv.org/content/10.1101/2020.07.22.216580v1).
+
+<a id="1"></a> 
+Lind, A. L. and K.S. Pollard. (2020).
+Accurate and sensitive detection of microbial eukaryotes from metagenomic shotgun sequencing data.
+bioRxiv. 2020.07.22.216580. doi: https://doi.org/10.1101/2020.07.22.216580
+
+
 ## Taxonomy database version
 
 **This section is only necessary to read if you are getting errors from the ete3 package.**
