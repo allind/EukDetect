@@ -41,7 +41,7 @@ python setup.py install
 
 Copy the `default_configfile.yml` to `your_configfile.yml`. Change all parameters in the config file as described.
 
-If you don't know what the length of your reads is, this is a handy one-liner to estimate it: `gzip -dc {file.fastq.gz} | head -n 10000 | awk '{ if (NR%4==2){count++; bases += length}} END{print bases/count}'`
+If you don't know what the length of your reads is, this is a handy one-liner to estimate it: `gzip -dc {file.fastq.gz} | head -n 10000 | awk '{ if (NR%4==2){count++; bases += length}} END{printf "%3.0f\n", bases/count}'`
 
 **Run modes**
 
