@@ -102,6 +102,8 @@ It may be possible that updates to the ete3 package, or differences in operating
 
 How to do this:
 
+If you use the ete3 package outside of EukDetect and you have a specific version of the NCBI taxonomy database installed, copy ~/.etetoolkit/taxa.sqlite and ~/.etetoolkit/taxa.sqlite.traverse.pkl to temporary files that you will restore afterwards. Otherwise, this process will overwrite any existing files and you will lose the data.
+
 ```
 conda activate eukdetect
 ```
@@ -115,4 +117,4 @@ ncbi.update_taxonomy_database(taxdump_file="taxdump_1_14_2020.tar.gz")
 exit()
 ```
 
-Now, remove the taxa.sqlite and taxa.sqlite.traverse.pkl file from the database folder, and find the newly created taxa.sqlite and taxa.sqlite.traverse.pkl files. This file will be located in your home directory in ~/.etetoolkit/. Move these file into the EukDetect database folder.
+Now, remove the taxa.sqlite and taxa.sqlite.traverse.pkl file from the database folder, and find the newly created taxa.sqlite and taxa.sqlite.traverse.pkl files. This file will be located in your home directory in ~/.etetoolkit/. Move these file into the EukDetect database folder. If you moved your existing taxa.sqlite files to temporary files, restore them to ~/.etetoolkit.
