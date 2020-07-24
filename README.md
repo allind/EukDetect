@@ -54,13 +54,13 @@ A schematic of the eukdetect pipeline and the files created in the pipeline can 
 
 There are *four* eukdetect modes, invoked with `eukdetect --mode`. All modes require a eukdetect config file as described above.
 
-The **runall** mode runs the entire pipeline. 
+The `runall` mode runs the entire pipeline. 
 
-The **aln** mode runs just the bowtie2 alignment step. 
+The `aln` mode runs just the bowtie2 alignment step. 
 
-The **filter** mode runs everything downstream of the alignment. The filter mode can only be run if the alignment step has been completed.
+The `filter` mode runs everything downstream of the alignment. The filter mode can only be run if the alignment step has been completed.
 
-The **alncmd** mode  creates a file in the output directory specified in the configfile called alignment_commands.txt. These commands can be run on a compute cluster either sequentially or as a job array. The alignment step of eukdetect is the most computationally intensive step of eukdetect, and this mode is intended for users to run the alignments on a high performance compute cluster if desired.
+The `alncmd` mode  creates a file in the output directory specified in the configfile called alignment_commands.txt. These commands can be run on a compute cluster either sequentially or as a job array. The alignment step of eukdetect is the most computationally intensive step of eukdetect, and this mode is intended for users to run the alignments on a high performance compute cluster if desired.
 
 Examples of eukdetect usage:
 
