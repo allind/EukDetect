@@ -100,7 +100,7 @@ The EukDetect pipeline uses the ete3 package to interface with the NCBI taxonomy
 
 It may be possible that updates to the ete3 package, or differences in operating systems, might result in ete3 not being able to correctly parse the database. If this happens, users will need to create their own taxonomy database from taxdump_1_14_2020.tar.gz. By default, ete3 saves the taxonomy database in ~/.etetoolkit in the home directory of the user, so this file will need to be moved into the EukDetect database directory. If you use ete3 outside of EukDetect, you may run the ete3 function update_taxonomy_database(), which will download the newest NCBI taxonomy database and overwrite the taxonomy database in ~/.etetoolkit. Therefore, this file needs to be moved to a location where it will not be overwritten.
 
-How to do this:
+**Solution**
 
 If you use the ete3 package outside of EukDetect and you have a specific version of the NCBI taxonomy database installed, copy ~/.etetoolkit/taxa.sqlite and ~/.etetoolkit/taxa.sqlite.traverse.pkl to temporary files that you will restore afterwards. Otherwise, this process will overwrite any existing files and you will lose the data.
 
