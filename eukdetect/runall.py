@@ -1,9 +1,12 @@
 
 #from ete3 import NCBITaxa
 
+from Bio import SeqIO
 from datetime import datetime
 from pathlib import Path
 import logging
+import shlex
+import gzip
 import os
 import sys
 import yaml
@@ -131,11 +134,17 @@ def main(argv=sys.argv):
 		alncontain, alnmiss = check_aln_output(config_info)
 		filtercontain, filtermiss = check_filter_output(config_info)
 		fastacontain, fastamiss = check_fastas(config_info)
+		fastalen = check_readlen(config_info)
 
 		if len(fastamiss) > 0:
 			logging.error("Error: missing input fasta files ...")
 			for e in fastamiss:
 				logging.error("Missing: " + e)
+			exit(1)
+
+		if len(fastalen) > 0:
+			logging.error("Error: read length in these fastq files appears more than 10 basepairs different from config file read length.")
+			logging.error("\n".join(fastalen))
 			exit(1)
 
 		if len(alncontain) > 0 or len(filtercontain) > 0:
@@ -148,7 +157,6 @@ def main(argv=sys.argv):
 				logging.error("Error: output files exist in output directory. Rerun EukDetect with --force to overwrite.")
 				logging.error("\n".join(remain))
 				exit(1)
-
 
 		#check fastas exist
 
@@ -163,11 +171,16 @@ def main(argv=sys.argv):
 	elif options.mode == "aln":
 		alncontain, alnmiss = check_aln_output(config_info)
 		fastacontain, fastamiss = check_fastas(config_info)
+		fastalen = check_readlen(config_info)
 
 		if len(fastamiss) > 0:
 			logging.error("Error: missing input fasta files ...")
 			for e in fastamiss:
 				logging.error("Missing: " + e)
+			exit(1)
+		if len(fastalen) > 0:
+			logging.error("Error: read length in these fastq files appears more than 10 basepairs different from config file read length.")
+			logging.error("\n".join(fastalen))
 			exit(1)
 
 		if len(alncontain) > 0:
@@ -190,11 +203,16 @@ def main(argv=sys.argv):
 
 	elif options.mode == "alncmd":
 		fastacontain, fastamiss = check_fastas(config_info)
+		fastalen = check_readlen(config_info)
 
 		if len(fastamiss) > 0:
 			logging.error("Error: missing input fasta files ...")
 			for e in fastamiss:
 				logging.error("Missing: " + e)
+			exit(1)
+		if len(fastalen) > 0:
+			logging.error("Error: read length in these fastq files appears more than 10 basepairs different from config file read length.")
+			logging.error("\n".join(fastalen))
 			exit(1)
 
 		#remove old alignment commands file if it exists
@@ -205,6 +223,8 @@ def main(argv=sys.argv):
 			else:
 				logging.error("Output directory already has alignment_commands.txt file. Rerun EukDetect with --force to overwrite.")
 				exit(1)
+
+
 
 		snakemake_args = ['snakemake', 
 						  '--snakefile', 
@@ -407,3 +427,84 @@ def check_fastas(config_info):
 				contains.append(read)
 
 	return contains, missing
+
+def check_readlen(config_info):
+	readlen = config_info["readlen"]
+	samples = config_info["samples"].keys()
+	path = config_info["fq_dir"] + "/"
+
+	bad = []
+	if config_info["paired_end"]:
+		for sample in samples:
+			fwd = path + sample + config_info["fwd_suffix"]
+			rev = path + sample + config_info["rev_suffix"]
+		if os.path.isfile(fwd):
+			#check readlen
+			counter = 0
+			bases = 0
+			if ".gz" in fwd:
+				with gzip.open(fwd, "rt") as handle:
+					for record in SeqIO.parse(handle, "fastq"):
+						if counter > 10000:
+							break
+						counter += 1
+						bases += len(str(record.seq))
+			else:
+				for record in SeqIO.parse(fwd, "fastq"):
+					if counter > 10000:
+						break
+					counter += 1
+					bases += len(str(record.seq))
+
+			file_readlen = int(bases / counter)
+			if abs(file_readlen - readlen) > 10:
+				bad.append(fwd)
+
+		if os.path.isfile(rev):
+			#check readlen
+			counter = 0
+			bases = 0
+			if ".gz" in rev:
+				
+				with gzip.open(rev, "rt") as handle:
+					for record in SeqIO.parse(handle, "fastq"):
+						if counter > 10000:
+							break
+						counter += 1
+						bases += len(str(record.seq))
+			else:
+				for record in SeqIO.parse(rev, "fastq"):
+					if counter > 10000:
+						break
+					counter += 1
+					bases += len(str(record.seq))
+
+			file_readlen = int(bases / counter)
+			if abs(file_readlen - readlen) > 10:
+				bad.append(rev)
+
+	else:
+		for sample in samples:
+			read = path + sample + config_info["se_suffix"]
+			if os.path.isfile(read):
+				counter = 0
+				bases = 0
+				if ".gz" in read:
+					with gzip.open(read, "rt") as handle:
+						for record in SeqIO.parse(handle, "fastq"):
+							if counter > 10000:
+								break
+							counter += 1
+							bases += len(str(record.seq))
+				else:
+					for record in SeqIO.parse(fwd, "fastq"):
+						if counter > 10000:
+							break
+						counter += 1
+						bases += len(str(record.seq))
+
+				file_readlen = int(bases / counter)
+				if abs(file_readlen - readlen) > 10:
+					bad.append(read)
+	return bad
+
