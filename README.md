@@ -35,10 +35,15 @@ conda activate eukdetect
 python setup.py install
 ```
 
-**Test installation***
+**Test installation**
 
-More info coming soon.
+To test your installation, edit the file `configfile_for_tests.yml` with the path to the installation directory and the path to the EukDetect database.
 
+From within the EukDetect installation directory, run:
+
+```
+python tests/test_eukdetect.py
+```
 
 ## Usage
 
@@ -71,16 +76,40 @@ eukdetect --mode filter --configfile [config file] --cores [cores]
 eukdetect --mode alncmd --configfile [config file] --cores [cores]
 ```
 
-**Eukdetect information**
+## Output file descriptions
+
+A schematic of the eukdetect pipeline and the files created in the pipeline can be found in [eukdetect_pipeline_schematic.pdf](https://github.com/allind/EukDetect/blob/master/eukdetect_pipeline_schematic.pdf).
+
+The main output of EukDetect are the files `{output_directory}/{samplename}_stats_per_filtered_taxid.txt` and `{output_directory}/{samplename}_hit_taxonomy_filterpass.txt`. 
+
+`{samplename}_stats_per_filtered_taxid.txt` reports: 
+  * the observed taxon's name
+  * how many marker genes had >1 aligned read
+  * the overall number of reads aligning to marker genes from this taxon
+  
+It also reports three statistics calculated from these numbers, which are:
+  * Percent_observed_markers: the percentage of the total marker genes of that species that are observed
+  * Total_marker_coverage: of the markers that are observed for that taxon, what percentage of the bases in that marker gene have one or more aligned reads
+  * Percent_identity: the percent identity calculated across all reads aligning to that taxon's marker gene
+
+`{samplename}_hit_taxonomy_filterpass.txt` is a taxonomy tree of all observed taxa, and it reports:
+  * Markers_Obs: The number of markers observed at that taxonomic node (includes all markers in node children)
+  * Total_Markers: The total number of markers that can be observed (includes all markers in node children)
+  * Percent_Makers_Obs: Percentage of total_markers observed at this node
+  * Percent_ID: percent identity shown in `{samplename}_stats_per_filtered_taxid.txt`. Only calculated if reads are assigned to this exact node, not to node children.
+  * Marker_read_count: number of reads aligning to markers at this node (including markers of node children).
+  * Rank: NCBI taxonomy rank of node
+
+EukDetect removes all taxa that have fewer than 4 reads that align to fewer than 2 marker genes. This is the minimum amount of evidence we recommend for determining if a eukaryotic species is present. However, the same information as the main output files without any filtering is located in the `{output_directory}/filtering/` folder. Information about reads aligning to each marker is in `{output_directory}/filtering/{samplename}_read_counts_and_mismatches.txt`.
+
+Alignments to the databse that have been length and quality filtered are in a coordinate-sorted bam file in the `{output_directory}/aln/` folder. Alignments that additionally have low-complexity and duplicate reads removed are in a bam file in `{output_directory/filtering/`.
+
+## Eukdetect information
+For more information about EukDetect, please see the [biorxiv manuscript](https://www.biorxiv.org/content/10.1101/2020.07.22.216580v1). A list of currently detectable EukDetect species is in Table S2 in the supplementary material of the biorxiv mansucript.
 
 Currently, EukDetect only supports analysis of reads that are **over** 75 base pairs long.
 
-For more information about EukDetect, please see the [biorxiv manuscript](https://www.biorxiv.org/content/10.1101/2020.07.22.216580v1).
-
-
-## Output file descriptions
-
-More info coming soon.
+If you are running EukDetect in paired-end mode, the number of reads in both files has to match. If there are different numbers of reads in the forward and reverse files, EukDetect will fail at the alignment phase.
 
 ## Citation
 
