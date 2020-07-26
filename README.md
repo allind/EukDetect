@@ -76,6 +76,15 @@ eukdetect --mode filter --configfile [config file] --cores [cores]
 eukdetect --mode alncmd --configfile [config file] --cores [cores]
 ```
 
+**Important info**
+
+Currently, EukDetect only supports analysis of reads that are **over** 75 base pairs long.
+
+If you are running EukDetect in paired-end mode, the number of reads in both files has to match. If there are different numbers of reads in the forward and reverse files, EukDetect will fail at the alignment phase.
+
+A list of currently detectable EukDetect species is in Table S2 in the supplementary material of the [biorxiv manuscript](https://www.biorxiv.org/content/10.1101/2020.07.22.216580v1).
+
+
 ## Output file descriptions
 
 A schematic of the eukdetect pipeline and the files created in the pipeline can be found in [eukdetect_pipeline_schematic.pdf](https://github.com/allind/EukDetect/blob/master/eukdetect_pipeline_schematic.pdf).
@@ -103,13 +112,6 @@ It also reports three statistics calculated from these numbers, which are:
 EukDetect removes all taxa that have fewer than 4 reads that align to fewer than 2 marker genes. This is the minimum amount of evidence we recommend for determining if a eukaryotic species is present. However, the same information as the main output files without any filtering is located in the `{output_directory}/filtering/` folder. Information about reads aligning to each marker is in `{output_directory}/filtering/{samplename}_read_counts_and_mismatches.txt`.
 
 Alignments to the databse that have been length and quality filtered are in a coordinate-sorted bam file in the `{output_directory}/aln/` folder. Alignments that additionally have low-complexity and duplicate reads removed are in a bam file in `{output_directory/filtering/`.
-
-## Eukdetect information
-For more information about EukDetect, please see the [biorxiv manuscript](https://www.biorxiv.org/content/10.1101/2020.07.22.216580v1). A list of currently detectable EukDetect species is in Table S2 in the supplementary material of the biorxiv mansucript.
-
-Currently, EukDetect only supports analysis of reads that are **over** 75 base pairs long.
-
-If you are running EukDetect in paired-end mode, the number of reads in both files has to match. If there are different numbers of reads in the forward and reverse files, EukDetect will fail at the alignment phase.
 
 ## Citation
 
