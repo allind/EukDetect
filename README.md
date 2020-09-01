@@ -1,4 +1,4 @@
-# EukDetect
+# EukDetect Secondary Hits
 
 ## Installation
 
