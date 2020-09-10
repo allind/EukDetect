@@ -24,14 +24,14 @@ def main(argv=sys.argv):
 			Required arguments are --mode and --config.
 
 			Modes:
-				runall: runs entire pipeline.
+				all: runs entire pipeline.
 
 				aln: only runs alignment step of pipeline.
 
 				filter: runs all downstream analysis of alignment. 
 					Requires alignment files to already exist.
 
-				alncmd: prints alignment commands to alignment_commands.txt.
+				printaln: prints alignment commands to alignment_commands.txt.
 
 
 			For a schematic on EukDetect modes, see eukdetect_pipeline_schematic.pdf
@@ -44,7 +44,7 @@ def main(argv=sys.argv):
 		type=str,
 		action="store",
 		dest="mode",
-		help= "Run mode: choose from runall, aln, alncmd, or filter.",
+		help= "Run mode: choose from runall, aln, printaln, or filter.",
 		required=True
 		)
 
@@ -198,10 +198,10 @@ def main(argv=sys.argv):
 						  options.config,
 						  '--cores',
 						  str(options.cores),
-						  "runaln"
+						  "aln"
 						  ]
 
-	elif options.mode == "alncmd":
+	elif options.mode == "printaln":
 		fastacontain, fastamiss = check_fastas(config_info)
 		fastalen = check_readlen(config_info)
 
@@ -233,7 +233,7 @@ def main(argv=sys.argv):
 						  options.config,
 						  '--cores',
 						  str(options.cores),
-						  "alncall"
+						  "printaln"
 						  ]
 
 
@@ -285,14 +285,13 @@ def main(argv=sys.argv):
 
 	snakelog = open("snakemake_" + str(timestamp) + ".log", "w")
 	cmd = subprocess.run(snakemake_args, stdout=snakelog, stderr=snakelog)
-	logging.info("Snakemake complete")
-
+	logging.info("Snakemake finished")
 
 	if cmd.returncode == 0:
 		#check correct output exists
 
-		if options.mode == "alncmd":
-			#if alncmd replace the brackets with single quotes that snakemake improperly evalutes. would like to find alt solution	
+		if options.mode == "printaln":
+			#if printaln replace the brackets with single quotes that snakemake improperly evalutes. would like to find alt solution	
 			if os.path.isfile(config_info["output_dir"] + "/alignment_commands.txt"):
 				newcmds = []
 				for line in open(config_info["output_dir"] + "/alignment_commands.txt"):
@@ -350,7 +349,7 @@ def main(argv=sys.argv):
 
 
 
-	if cmd.returncode != 1:
+	if cmd.returncode != 0:
 		logging.error("Something went wrong with snakemake. Check log files")
 		exit(cmd.returncode)
 
@@ -386,12 +385,11 @@ def check_filter_output(config_info):
 		f1 = outdir + '/filtering/' + sample + "_aln_q30_lenfilter_complexityfilter_dupfilter.sorted.bam"
 		f2 = outdir + '/filtering/' + sample + '_aln_q30_lenfilter_complexityfilter_dupfilter.sorted.bam.bai'
 		f3 = outdir + '/filtering/' + sample + "_read_counts_and_mismatches.txt"
-		f4 = outdir + '/filtering/' + sample + "_hit_taxonomy.txt"
-		f5 = outdir + '/filtering/' + sample + "_all_stats_per_taxid.txt"
-		f6 = outdir + '/' + sample + "_hit_taxonomy_filterpass.txt"
-		f7 = outdir + '/' + sample + "_stats_per_filtered_taxid.txt"
+		f4 = outdir + '/filtering/' + sample + "_all_hits_table.txt"
+		f5 = outdir + '/' + sample + "_filtered_hits_table.txt"
+		f6 = outdir + '/' + sample + "_filtered_hits_taxonomy.txt"
 
-		filelist = [f1, f2, f3, f4, f5, f6, f7]
+		filelist = [f1, f2, f3, f4, f5, f6]
 
 		for f in filelist:
 			if os.path.isfile(f):

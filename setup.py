@@ -8,7 +8,7 @@ with open('LICENSE') as f:
 
 setuptools.setup(
 		name="EukDetect",
-		version="0.0.1",
+		version="1.0.1",
 		author="Abigail Lind",
 		author_email="allind89@gmail.com",
 		description="Detect eukaryotes from shotgun metagenomic data",
