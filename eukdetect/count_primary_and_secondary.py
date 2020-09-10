@@ -398,7 +398,7 @@ def main(argv):
 		f = open(files.primarytab, 'w')
 		f.write(message + '\n')
 		f.close()
-		f = open(files.alltab, 'w')
+		f = open(files.primarytax, 'w')
 		f.write(message + '\n')
 		f.close()
 		sys.exit()
