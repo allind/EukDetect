@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-#usage: script.py [4read_counts_and_mismatches] [5taxonomy output] [6table output] [7all hits]
+#usage: script.py
 #from memory_profiler import profile
 from ete3 import NCBITaxa
 import argparse
@@ -14,7 +14,7 @@ def main(argv):
 		description=textwrap.dedent("""\
 			Summarize and filter alignments by taxid.
 
-			Required arguments are --dbfile, --readcounts, --primarytax, --primarytab, --alltab
+			Required arguments are --dbfile, --inherited_markers, --taxid_link, --readcounts, --primarytax, --primarytab, --alltab
 
 			"""),
 		formatter_class = argparse.RawDescriptionHelpFormatter
@@ -118,6 +118,7 @@ def main(argv):
 	countfile.readline()
 
 	genuses = {}
+	above_species = []
 	#genuses: {genus:[taxid, taxid, taxid]}
 
 	for line in countfile:
@@ -141,13 +142,15 @@ def main(argv):
 		#determine genus
 		lineage = ncbi.get_lineage(int(taxid))
 		ranks = {value: key for (key, value) in ncbi.get_rank(lineage).items()}
-		lowest = list(ncbi.get_rank([lineage[-1]]).values())[0]
-		if 'genus' in ranks and 'Collapse' not in seq and lowest != "genus": #dont filter if it's at the genus level
+		#lowest = list(ncbi.get_rank([lineage[-1]]).values())[0]
+		if 'genus' in ranks and 'Collapse' not in seq and "species" in ranks: #lowest != "genus": #dont filter if it's at the genus level
 			genus = ranks['genus']
 			if genus not in genuses:
 				genuses[genus] = []
 			if taxid not in genuses[genus]:
 				genuses[genus].append(taxid)
+		else:
+			above_species.append(taxid)
 
 		#save info per sequence in seq_counts dict
 		#seq_counts[seq] = [count, correct_bases, total_bases, subjlen, coverage, pid, busco]
@@ -179,6 +182,7 @@ def main(argv):
 		f.close()
 		sys.exit()
 	countfile.close()
+
 	#done parsing read_counts_and_mismatches file
 
 	#calculate stats for each observed taxid
@@ -359,14 +363,39 @@ def main(argv):
 			taxid = genuses[g][0]
 			primary[taxid] = taxon_coverage[taxid][0:5]
 
+	#add anything else
+	for t in above_species:
+		primary[t] = taxon_coverage[t][0:5]
+
+	#write full table
+	marker_sorted = sorted(taxon_coverage.keys(), reverse = True, key = lambda x: taxon_coverage[x][3])
 
 	dest = open(files.alltab, 'w')
 	dest.write("Name\tTaxid\tObserved_markers\tRead_counts\tPercent_observed_markers\tTotal_marker_coverage\tPercent_identity\n")
-	marker_sorted = sorted(taxon_coverage.keys(), reverse = True, key = lambda x: taxon_coverage[x][3])
+	for tax in marker_sorted:
+		rank = [ncbi.get_rank([tax])[e] for e in ncbi.get_rank([tax])][0]
+		name = [ncbi.get_taxid_translator([tax])[e] for e in ncbi.get_taxid_translator([tax])][0]
+		mc = taxon_coverage[tax][0]
+		counts = taxon_coverage[tax][1]
+		marker_percentage = taxon_coverage[tax][3]
+		overall_coverage = taxon_coverage[tax][4]
+		percent_identity = taxon_coverage[tax][5]
+		dest.write(name + '\t'
+			+ str(tax) + '\t'
+			+ str(mc) + '\t' 
+			+ str(counts) + '\t' 
+			+ str(marker_percentage) + '%\t'
+			+ str(overall_coverage) + '%\t'
+			+ str(percent_identity) + '%\n')
+	dest.close()
+
+	dest = open(files.primarytab, 'w')
+	dest.write("Name\tTaxid\tObserved_markers\tRead_counts\tPercent_observed_markers\tTotal_marker_coverage\tPercent_identity\n")
 	#TODO: implement filters
 
 	primary_sorted = sorted(primary.keys(), reverse = True, key = lambda x: primary[x][3])
 	#secondary_sorted = sorted(secondary.keys(), reverse=True, key=lambda x: secondary[x][3])
+
 	filter_passing_taxids = []
 
 	for tax in primary_sorted:
@@ -402,27 +431,6 @@ def main(argv):
 		f.write(message + '\n')
 		f.close()
 		sys.exit()
-
-
-	dest = open(files.primarytab, 'w')
-	dest.write("Name\tTaxid\tObserved_markers\tRead_counts\tPercent_observed_markers\tTotal_marker_coverage\tPercent_identity\n")
-	for tax in marker_sorted:
-		rank = [ncbi.get_rank([tax])[e] for e in ncbi.get_rank([tax])][0]
-		name = [ncbi.get_taxid_translator([tax])[e] for e in ncbi.get_taxid_translator([tax])][0]
-		mc = taxon_coverage[tax][0]
-		counts = taxon_coverage[tax][1]
-		marker_percentage = taxon_coverage[tax][3]
-		overall_coverage = taxon_coverage[tax][4]
-		percent_identity = taxon_coverage[tax][5]
-		dest.write(name + '\t'
-			+ str(tax) + '\t'
-			+ str(mc) + '\t' 
-			+ str(counts) + '\t' 
-			+ str(marker_percentage) + '%\t'
-			+ str(overall_coverage) + '%\t'
-			+ str(percent_identity) + '%\n')
-	dest.close()
-
 
 	#create NCBI taxon tree of observed taxa + extend to cellular_org
 	tree = ncbi.get_topology(filter_passing_taxids)
