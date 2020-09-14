@@ -276,18 +276,29 @@ def main(argv):
 			#if one has more reads and more bases than all others, it is primary, others are secondary
 			maxreads = max(reads)
 			maxbases = max(bases)
+			ptaxids = []
+			if (reads.count(maxreads) == 1 and bases.count(maxbases) == 1)\
+			 and (reads.index(maxreads) == bases.index(maxbases)): #no ties, same ID
+			 	maxtax = taxids[reads.index(maxreads)]
+			 	primary[maxtax] = taxon_coverage[maxtax][0:5]
+			 	ptaxids.append(maxtax)
+				#ptaxids.append(taxids[reads.index(maxreads)])
+				#primary[ptaxid] = taxon_coverage[ptaxid][0:5]
+				#p_buscos = full_seq_taxids[ptaxid][0]
+			else:
+				for t in taxids: 
+					if taxon_coverage[t][1] == maxreads or taxon_coverage[t][2] == maxbases:
+						ptaxids.append(t)
+						primary[t] = taxon_coverage[t][0:5]
 
-			if (reads.count(maxreads) == 1 and bases.count(maxbases) == 1) and (reads.index(maxreads) == bases.index(maxbases)): #no ties, same ID
-				ptaxid = taxids[reads.index(maxreads)]
-				primary[ptaxid] = taxon_coverage[ptaxid][0:5]
-				p_buscos = full_seq_taxids[ptaxid][0]
-				ataxids = [t for t in taxids if t != ptaxid]
-
-				for ataxid in ataxids:
-
+			unsorted_ataxids = [t for t in taxids if t != ptaxids]
+			ataxids = sorted(unsorted_ataxids, key = lambda x: taxon_coverage[x][1], reverse = True)
+			for ataxid in ataxids:
+				is_secondary = False
+				for ptaxid in primary:
+					p_buscos = full_seq_taxids[ptaxid][0]
 					a_buscos = taxon_coverage[ataxid][-1]
 					a_remain = [b for b in a_buscos if b in p_buscos]
-
 					if len(a_remain) > 0:
 						a_above = []
 						for b in a_remain:
@@ -295,70 +306,23 @@ def main(argv):
 							#check that the pid for this hit is lower
 							apid = [seq[6] for seq in taxid_counts[ataxid] if seq[7] == b]
 							ppid = [seq[6] for seq in taxid_counts[ptaxid] if seq[7] == b]
-
 							if len(ppid) > 0 and apid[0] >= ppid[0]:
 								a_above.append(b)
-
 							elif len(ppid) == 0:
 								a_above.append(b)
-
-						if len(a_above) >= len(a_buscos)/2: #if half or more of the hits were above the main hit in PID
-							primary[ataxid] = taxon_coverage[ataxid][0:5] #cant distinguish
-
+						#if a_buscos is fewer than 3, all must be correct
+						if len(a_buscos) < 3:
+							if len(a_above) < len(a_buscos):
+								is_secondary = True
 						else:
-							secondary[ataxid] = taxon_coverage[ataxid][0:5] + [ptaxid]
+							if len(a_above) <= len(a_buscos)/3:
+								is_secondary = True
 					else:
-						secondary[ataxid] = taxon_coverage[ataxid][0:5]
-
-#TODO: figure out exceptions!
-			else: #there are ties or max reads and max bases are different
-				#if reads.index(maxreads) != bases.index(maxbases): #max reads and max bases differ
-				#	ptaxids = [t for t in taxids if taxon_coverage[t][1] == maxreads or taxon_coverage[t][2] == maxbases]
-				#elif reads.count(maxreads) != 1 or bases.count(maxbases) != 1: #there are ties
-				ptaxids = [t for t in taxids if taxon_coverage[t][1] == maxreads or taxon_coverage[t][2] == maxbases]
-
-				for p in ptaxids:
-					primary[p] = taxon_coverage[p][0:5]
-
-
-				ataxids = [t for t in taxids if t not in ptaxids]
-				a_nested = []
-
-				if len(ataxids) > 0:
-
-					for p in ptaxids:
-						p_buscos = full_seq_taxids[p][0]
-
-						for a in ataxids:
-							a_buscos = taxon_coverage[a][-1]
-							a_remain = [b for b in a_buscos if b in p_buscos]
-
-							if len(a_remain) > 0:
-								a_above = []
-								for b in a_remain:
-									apid = [seq[6] for seq in taxid_counts[a] if seq[7] == b]
-									ppid = [seq[6] for seq in taxid_counts[p] if seq[7] == b]
-
-									if len(ppid) > 0 and apid[0] >= ppid[0]:
-										a_above.append(b)
-									elif len(ppid) == 0:
-										a_above.append(b)
-
-								if len(a_above) < len(a_remain)/2: #if not all all of the hits were above the main hit in PID
-									#is nested
-									a_nested.append(a)
-									break
-							else:
-								a_nested.append(a)
-								break
-
-					a_passed = [a for a in ataxids if a not in a_nested]
-					for a in a_passed:
-						primary[a] = taxon_coverage[a][0:5]
-					for a in a_nested:
-						secondary[a] = taxon_coverage[a][0:5]
-
-
+						is_secondary = True
+				if is_secondary:
+					secondary[ataxid] = taxon_coverage[ataxid][0:5] + [ptaxid]
+				else:
+					primary[ataxid] = taxon_coverage[ataxid][0:5]
 
 		else: #primary
 			taxid = genuses[g][0]
