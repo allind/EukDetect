@@ -108,6 +108,8 @@ def main(argv):
 		taxid_seqs[taxid].append(seq)
 		seq_taxids[seq] = taxid
 
+
+
 	#save contents of read_counts_and_mismatches file as dict per observed taxid
 	#save observed genuses
 	#taxid_counts: {taxid: [[marker, readcount, correct_bases, total_bases, seqlen, coverage, pid, busco]]}
@@ -234,7 +236,6 @@ def main(argv):
 								overall_coverage, 
 								percent_identity, 
 								buscos]
-
 	#create tree structure for all observed taxids
 
 	tree = ncbi.get_topology(seen_taxids)
@@ -301,7 +302,7 @@ def main(argv):
 							elif len(ppid) == 0:
 								a_above.append(b)
 
-						if len(a_above) >= len(a_remain)/2: #if half or more of the hits were above the main hit in PID
+						if len(a_above) >= len(a_buscos)/2: #if half or more of the hits were above the main hit in PID
 							primary[ataxid] = taxon_coverage[ataxid][0:5] #cant distinguish
 
 						else:
