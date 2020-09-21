@@ -65,7 +65,7 @@ The `aln` mode runs just the bowtie2 alignment step.
 
 The `filter` mode runs everything downstream of the alignment. The filter mode can only be run if the alignment step has been completed.
 
-The `alncmd` mode  creates a file in the output directory specified in the configfile called alignment_commands.txt. These commands can be run on a compute cluster either sequentially or as a job array. The alignment step of eukdetect is the most computationally intensive step of eukdetect, and this mode is intended for users to run the alignments on a high performance compute cluster if desired.
+The `printaln` mode  creates a file in the output directory specified in the configfile called alignment_commands.txt. These commands can be run on a compute cluster either sequentially or as a job array. The alignment step of eukdetect is the most computationally intensive step of eukdetect, and this mode is intended for users to run the alignments on a high performance compute cluster if desired.
 
 Examples of eukdetect usage:
 
@@ -73,7 +73,7 @@ Examples of eukdetect usage:
 eukdetect --mode runall --configfile [config file] --cores [cores]
 eukdetect --mode aln --configfile [config file] --cores [cores]
 eukdetect --mode filter --configfile [config file] --cores [cores]
-eukdetect --mode alncmd --configfile [config file] --cores [cores]
+eukdetect --mode printaln --configfile [config file] --cores [cores]
 ```
 
 **Important info**
