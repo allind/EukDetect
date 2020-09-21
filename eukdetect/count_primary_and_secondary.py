@@ -291,7 +291,7 @@ def main(argv):
 						ptaxids.append(t)
 						primary[t] = taxon_coverage[t][0:5]
 
-			unsorted_ataxids = [t for t in taxids if t != ptaxids]
+			unsorted_ataxids = [t for t in taxids if t not in ptaxids]
 			ataxids = sorted(unsorted_ataxids, key = lambda x: taxon_coverage[x][1], reverse = True)
 			for ataxid in ataxids:
 				is_secondary = False
