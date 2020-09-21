@@ -21,7 +21,7 @@ class _01_HelpText(unittest.TestCase):
 
 class _02_RunRunall(unittest.TestCase):
 	def test_class(self):
-		command = 'eukdetect --mode all --configfile tests/configfile_for_tests.yml --force'
+		command = 'eukdetect --mode runall --configfile tests/configfile_for_tests.yml --force'
 		code, stdout, stderr = run(command)
 		self.assertTrue(code==0, msg=stderr)
 
@@ -52,9 +52,9 @@ class _05_cleanup(unittest.TestCase):
 		if os.path.isdir("tests/filtering"):
 			shutil.rmtree("tests/filtering")
 		if os.path.isfile("tests/test_filtered_hits.txt"):
-			os.remove("tests/test_stats_per_filtered_taxid.txt")
+			os.remove("tests/test_filtered_hits.txt")
 		if os.path.isfile("tests/test_filtered_hits_taxonomy.txt"):
-			os.remove("tests/test_hit_taxonomy_filterpass.txt")
+			os.remove("tests/test_filtered_hits_taxonomy.txt")
 		self.assertTrue(1==1)
 
 if __name__ == '__main__':
