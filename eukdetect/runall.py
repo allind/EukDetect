@@ -95,14 +95,16 @@ def main(argv=sys.argv):
 			exit(1)
 
 		#check the database exists
-		db_files = ["all_buscos_v4.fna.1.bt2", 
-					"all_buscos_v4.fna.2.bt2", 
-					"all_buscos_v4.fna.3.bt2", 
-					"all_buscos_v4.fna.4.bt2", 
-					"all_buscos_v4.fna.rev.1.bt2", 
-					"all_buscos_v4.fna.rev.2.bt2",
+		db_files = [config_info["database_prefix"] + ".1.bt2", 
+					config_info["database_prefix"] + ".2.bt2", 
+					config_info["database_prefix"] + ".3.bt2", 
+					config_info["database_prefix"] + ".4.bt2", 
+					config_info["database_prefix"] + ".rev.1.bt2", 
+					config_info["database_prefix"] + ".rev.2.bt2",
 					"taxa.sqlite",
-					"taxa.sqlite.traverse.pkl"
+					"taxa.sqlite.traverse.pkl",
+					"specific_and_inherited_markers_per_taxid.txt",
+					"busco_taxid_link.txt"
 					]
 
 		if os.path.isdir(config_info["database_dir"]):
