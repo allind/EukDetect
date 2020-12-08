@@ -32,7 +32,7 @@ rule filter:
 
 rule alncmd:
 	input:
-		db = expand("{tax_dir}/all_buscos_v4.fna", tax_dir=config["database_dir"]),
+		db = expand("{tax_dir}/{db}", tax_dir=config["database_dir"], db=config["database_prefix"]),
 		r1 = expand("{fq_dir}/{sample}{fwd_suffix}", fq_dir=config["fq_dir"], sample=config["samples"], fwd_suffix=config["fwd_suffix"]) if config["paired_end"] else expand("{fq_dir}/{{sample}}{se_suffix}", fq_dir=config["fq_dir"], se_suffix=config["se_suffix"]),
 		r2 = expand("{fq_dir}/{sample}{rev_suffix}", fq_dir=config["fq_dir"], sample=config["samples"], rev_suffix=config["rev_suffix"]) if config["paired_end"] else expand("{fq_dir}/{{sample}}{se_suffix}", fq_dir=config["fq_dir"], se_suffix=config["se_suffix"])
 	output:
@@ -64,11 +64,9 @@ rule alncmd:
 
 rule runaln:
 	input:
-		db = expand("{tax_dir}/all_buscos_v4.fna", tax_dir=config["database_dir"]),
+		db = expand("{tax_dir}/{db}", tax_dir=config["database_dir"], db=config["database_prefix"]),
 		r1 = expand("{fq_dir}/{{sample}}{fwd_suffix}", fq_dir=config["fq_dir"], fwd_suffix=config["fwd_suffix"]) if config["paired_end"] else expand("{fq_dir}/{{sample}}{se_suffix}", fq_dir=config["fq_dir"], se_suffix=config["se_suffix"]),
 		r2 = expand("{fq_dir}/{{sample}}{rev_suffix}", fq_dir=config["fq_dir"], rev_suffix=config["rev_suffix"]) if config["paired_end"] else expand("{fq_dir}/{{sample}}{se_suffix}", fq_dir=config["fq_dir"], se_suffix=config["se_suffix"])
-		#r1 = expand("{fq_dir}/{{sample}}{fwd_suffix}", fq_dir=config["fq_dir"], fwd_suffix=config["fwd_suffix"]),
-		#r2 = expand("{fq_dir}/{{sample}}{rev_suffix}", fq_dir=config["fq_dir"], rev_suffix=config["rev_suffix"])
 	output:
 		bam = "{output_dir}/aln/{sample}_aln_q30_lenfilter.sorted.bam"
 	run:
@@ -160,7 +158,7 @@ rule countreads:
 		bam = "{output_dir}/filtering/{sample}_aln_q30_lenfilter_complexityfilter_dupfilter.sorted.bam",
 		bai = "{output_dir}/filtering/{sample}_aln_q30_lenfilter_complexityfilter_dupfilter.sorted.bam.bai",
 		countscript = expand("{eukdetect_dir}/eukdetect/bam_to_pid.py", eukdetect_dir=config["eukdetect_dir"]),
-		ref = expand("{tax_dir}/all_buscos_v4.fna", tax_dir=config["database_dir"])
+		ref = expand("{tax_dir}/{db}", tax_dir=config["database_dir"], db=config["database_prefix"])
 	output:
 		counts = "{output_dir}/filtering/{sample}_read_counts_and_mismatches.txt"
 	shell:
