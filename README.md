@@ -1,4 +1,4 @@
-# EukDetect Secondary Hits
+# EukDetect
 
 ## Installation
 
@@ -55,7 +55,7 @@ If you don't know what the length of your reads is, this is a handy one-liner to
 
 **Run modes**
 
-A schematic of the eukdetect pipeline and the files created in the pipeline can be found in [eukdetect_pipeline_schematic.pdf](https://github.com/allind/EukDetect/blob/master/eukdetect_pipeline_schematic.pdf).
+A schematic of the eukdetect pipeline and the files created in the pipeline can be found in [the pipeline schematic pdf](https://github.com/allind/EukDetect/blob/master/EukDetect_pipeline_schematic.pdf).
 
 There are *four* eukdetect modes, invoked with `eukdetect --mode`. All modes require a eukdetect config file as described above.
 
@@ -65,7 +65,7 @@ The `aln` mode runs just the bowtie2 alignment step.
 
 The `filter` mode runs everything downstream of the alignment. The filter mode can only be run if the alignment step has been completed.
 
-The `printaln` mode  creates a file in the output directory specified in the configfile called alignment_commands.txt. These commands can be run on a compute cluster either sequentially or as a job array. The alignment step of eukdetect is the most computationally intensive step of eukdetect, and this mode is intended for users to run the alignments on a high performance compute cluster if desired.
+The `printaln` mode  creates a file in the output directory specified in the configfile called alignment_commands.txt. These commands can be run on a compute cluster either sequentially or as a job array. The alignment step of eukdetect is the most computationally intensive step of eukdetect, and this mode is intended for users to run the alignments on a compute cluster if desired.
 
 Examples of eukdetect usage:
 
@@ -74,6 +74,13 @@ eukdetect --mode runall --configfile [config file] --cores [cores]
 eukdetect --mode aln --configfile [config file] --cores [cores]
 eukdetect --mode filter --configfile [config file] --cores [cores]
 eukdetect --mode printaln --configfile [config file] --cores [cores]
+```
+
+EukDetect can also be run directly as a snakemake workflow using the `rules/eukdetect.rules` file, specifying either `runall`, `printaln`, `aln`, or `filter` as the target rule. If you routinely run snakemake jobs on a cluster and wish to run the entire EukDetect pipeline on it, this is the recommended option. Running snakemake directly means there are fewer checks to make sure the input and output are correct.
+
+Examples:
+```
+snakemake --snakefile rules/eukdetect.rules --configfile [config file] --cores 8 runall
 ```
 
 **Important info**
