@@ -139,7 +139,7 @@ def main(argv):
 		if "Collapse" not in seq:
 			busco = re.findall('-\d*at\d*-', seq)[0].strip('-')
 		else:
-			busco = ""
+			busco = "Collapsed"
 		
 		#determine genus
 		lineage = ncbi.get_lineage(int(taxid))
@@ -151,7 +151,7 @@ def main(argv):
 				genuses[genus] = []
 			if taxid not in genuses[genus]:
 				genuses[genus].append(taxid)
-		else:
+		elif "SSCollapse" not in seq: #don't add anything that's got SSCollapse in it
 			above_species.append(taxid)
 
 		#save info per sequence in seq_counts dict
@@ -267,6 +267,8 @@ def main(argv):
 	#if MRCA is at the level of genus, consider whether one should be primary or secondary by looking at buscos
 	primary = {}
 	secondary = {}
+
+
 	for g in genuses:
 		if len(genuses[g]) > 1: #multiple species in same genus
 			taxids = genuses[g]
@@ -277,6 +279,7 @@ def main(argv):
 			maxreads = max(reads)
 			maxbases = max(bases)
 			ptaxids = []
+
 			if (reads.count(maxreads) == 1 and bases.count(maxbases) == 1)\
 			 and (reads.index(maxreads) == bases.index(maxbases)): #no ties, same ID
 			 	maxtax = taxids[reads.index(maxreads)]
@@ -296,7 +299,7 @@ def main(argv):
 			for ataxid in ataxids:
 				is_secondary = False
 				for ptaxid in primary:
-					p_buscos = full_seq_taxids[ptaxid][0]
+					p_buscos = [b for b in full_seq_taxids[ptaxid][0]]
 					a_buscos = taxon_coverage[ataxid][-1]
 					a_remain = [b for b in a_buscos if b in p_buscos]
 					if len(a_remain) > 0:
@@ -323,7 +326,6 @@ def main(argv):
 					secondary[ataxid] = taxon_coverage[ataxid][0:5] + [ptaxid]
 				else:
 					primary[ataxid] = taxon_coverage[ataxid][0:5]
-
 		else: #primary
 			taxid = genuses[g][0]
 			primary[taxid] = taxon_coverage[taxid][0:5]
