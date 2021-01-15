@@ -297,28 +297,34 @@ def main(argv):
 			unsorted_ataxids = [t for t in taxids if t not in ptaxids]
 			ataxids = sorted(unsorted_ataxids, key = lambda x: taxon_coverage[x][1], reverse = True)
 			for ataxid in ataxids:
+				#print(ataxid)
 				is_secondary = False
 				for ptaxid in primary:
 					p_buscos = [b for b in full_seq_taxids[ptaxid][0]]
 					a_buscos = taxon_coverage[ataxid][-1]
 					a_remain = [b for b in a_buscos if b in p_buscos]
+					#print(a_buscos)
+					#print(a_remain)
 					if len(a_remain) > 0:
 						a_above = []
 						for b in a_remain:
+
 							#it may not be a hit for the other one! check first
 							#check that the pid for this hit is lower
 							apid = [seq[6] for seq in taxid_counts[ataxid] if seq[7] == b]
 							ppid = [seq[6] for seq in taxid_counts[ptaxid] if seq[7] == b]
+
 							if len(ppid) > 0 and apid[0] >= ppid[0]:
 								a_above.append(b)
 							elif len(ppid) == 0:
 								a_above.append(b)
-						#if a_buscos is fewer than 3, all must be correct
-						if len(a_buscos) < 3:
+						#if a_buscos is fewer than 5, all must be correct
+						#print(a_above)
+						if len(a_buscos) < 5:
 							if len(a_above) < len(a_buscos):
 								is_secondary = True
 						else:
-							if len(a_above) <= len(a_buscos)/3:
+							if len(a_above) <= len(a_buscos)/2: #change: alt hit has to be half or busco hits being above
 								is_secondary = True
 					else:
 						is_secondary = True
