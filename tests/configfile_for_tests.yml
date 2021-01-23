@@ -1,7 +1,6 @@
 #Config file for testing eukdetect. Edit your paths where specified
 
-eukdetect_dir: "/pollard/data/projects/eukdetect/midas_testing/busco_v4/eukdetect_repo/EukDetect_secondary_hits/EukDetect"
-
+eukdetect_dir: "/path/to/Eukdetect/install"
 output_dir: "tests" #directory where output should be written
     
 paired_end: true #true or false
@@ -13,7 +12,7 @@ readlen: 125 #targeted length of your reads. pre-trimming reads not recommended
 
 fq_dir: "tests" #full path to directory with raw fastq files
 database_dir: "/path/to/database" #full path to folder with all eukdetect_db files and taxa.sqlite files
-database_prefix: "all_buscos_v4.fna" #database prefix
+database_prefix: "ncbi_eukprot_met_arch_markers.fna" #database prefix
 
 samples: #list sample names here. fastqs must correspond to {samplename}{se_suffix} for SE reads or {samplename}{fwd_suffix} and {samplename}{rev_suffix} for PE
   test:
