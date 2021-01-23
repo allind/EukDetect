@@ -16,12 +16,18 @@ cd EukDetect
 
 **Download EukDetect database from Figshare**
 
-Download and unpack the EukDetect database (eukdetect_database_v1.tar.gz) from the [Figshare repository](https://doi.org/10.6084/m9.figshare.12670856).
+***NEW DATABASE 1/23/2021 - MUCH LARGER TAXONOMIC COVERAGE***
+
+Download and unpack the EukDetect database (eukdetect_database_v1.tar.gz) from the [Figshare repository](https://doi.org/10.6084/m9.figshare.12670856.v6)
+
+The previous version of the EukDetect database (from NCBI genomes only, no chloroplastids and no metazoans other than worms) is [still available](https://doi.org/10.6084/m9.figshare.12670856.v4).
 
 ```
-wget https://ndownloader.figshare.com/files/24012515 
-tar -zxvf 24012515
-rm 24012515
+mkdir eukdb
+cd eukdb
+wget https://ndownloader.figshare.com/files/26173346
+tar -zxvf 26173346
+rm 26173346
 ```
 
 The uncompressed database folder is 2.6 Gb in size.
