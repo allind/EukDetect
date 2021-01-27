@@ -82,6 +82,9 @@ eukdetect --mode filter --configfile [config file] --cores [cores]
 eukdetect --mode printaln --configfile [config file] --cores [cores]
 ```
 
+
+**Running snakemake directly**
+
 EukDetect can also be run directly as a snakemake workflow using the `rules/eukdetect.rules` file, specifying either `runall`, `printaln`, `aln`, or `filter` as the target rule. If you routinely run snakemake jobs on a cluster and wish to run the entire EukDetect pipeline on it, this is the recommended option. Running snakemake directly means there are fewer checks to make sure the input and output are correct.
 
 Examples:
