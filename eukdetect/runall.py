@@ -497,7 +497,7 @@ def check_readlen(config_info):
 							counter += 1
 							bases += len(str(record.seq))
 				else:
-					for record in SeqIO.parse(fwd, "fastq"):
+					for record in SeqIO.parse(read, "fastq"):
 						if counter > 10000:
 							break
 						counter += 1
