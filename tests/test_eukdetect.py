@@ -53,8 +53,8 @@ class _05_cleanup(unittest.TestCase):
 			shutil.rmtree("tests/filtering")
 		if os.path.isfile("tests/test_filtered_hits_table.txt"):
 			os.remove("tests/test_filtered_hits_table.txt")
-		if os.path.isfile("tests/test_filtered_hits_taxonomy.txt"):
-			os.remove("tests/test_filtered_hits_taxonomy.txt")
+		if os.path.isfile("tests/test_filtered_hits_eukfrac.txt"):
+			os.remove("tests/test_filtered_hits_eukfrac.txt")
 		if os.path.isfile("tests/alignment_commands.txt"):
 			os.remove("tests/alignment_commands.txt")
 		self.assertTrue(1==1)

@@ -104,7 +104,8 @@ def main(argv=sys.argv):
 					"taxa.sqlite",
 					"taxa.sqlite.traverse.pkl",
 					"specific_and_inherited_markers_per_taxid.txt",
-					"busco_taxid_link.txt"
+					"busco_taxid_link.txt",
+					"taxid_cumulativelength.txt"
 					]
 
 		if os.path.isdir(config_info["database_dir"]):
@@ -124,9 +125,9 @@ def main(argv=sys.argv):
 			exit(1)
 
 	#check snakemake rules file exists
-	snakefile = Path(config_info["eukdetect_dir"] + "/rules/eukdetect.rules")
+	snakefile = Path(config_info["eukdetect_dir"] + "/rules/eukdetect_eukfrac.rules")
 	if not snakefile.exists():
-		logging.error("Error: could not find /rules/eukdetect.rules in eukdetect_dir specified in configfile.")
+		logging.error("Error: could not find /rules/eukdetect_eukfrac.rules in eukdetect_dir specified in configfile.")
 		exit(1)
 
 	#check required inputs and required outputs
@@ -389,7 +390,7 @@ def check_filter_output(config_info):
 		f3 = outdir + '/filtering/' + sample + "_read_counts_and_mismatches.txt"
 		f4 = outdir + '/filtering/' + sample + "_all_hits_table.txt"
 		f5 = outdir + '/' + sample + "_filtered_hits_table.txt"
-		f6 = outdir + '/' + sample + "_filtered_hits_taxonomy.txt"
+		f6 = outdir + '/' + sample + "_filtered_hits_eukfrac.txt"
 
 		filelist = [f1, f2, f3, f4, f5, f6]
 
