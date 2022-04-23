@@ -464,9 +464,9 @@ def main(argv):
 	for g in genus_secondary_hits:
 		for s in genus_secondary_hits[g]:
 			for seq in taxid_counts[s]:
-				if g not in taxid_lendenoms:
-					taxid_lendenoms[g] = 0
-				taxid_lendenoms[g] += seq[4]
+				#if g not in taxid_lendenoms:
+				#	taxid_lendenoms[g] = 0
+				#taxid_lendenoms[g] += seq[4]
 				if g not in taxid_counts:
 					taxid_counts[g] = []
 				taxid_counts[g].append(seq)
@@ -490,9 +490,9 @@ def main(argv):
 		if node.name not in taxid_counts:
 			taxid_counts[node.name] = []
 
-
+		rank = [ncbi.get_rank([node.name])[e] for e in ncbi.get_rank([node.name])][0]
 		if node.is_leaf() == False:
-			rank = [ncbi.get_rank([node.name])[e] for e in ncbi.get_rank([node.name])][0]
+			
 			if rank in relab_levels:
 				relab_levels[rank].append(node.name)
 
@@ -500,13 +500,13 @@ def main(argv):
 				#add indiv seqs
 				for seq in taxid_counts[node.name]:
 					taxid_lendenoms[node.name] += seq[4]
-
-
+			if rank == "species":
+				taxid_lendenoms[node.name] += taxid_genelen[node.name]	
 			for desc in node.iter_descendants():
 				if desc.name in taxid_counts:
-					rank = [ncbi.get_rank([desc.name])[e] for e in ncbi.get_rank([desc.name])][0]
+					descrank = [ncbi.get_rank([desc.name])[e] for e in ncbi.get_rank([desc.name])][0]
 
-					if rank == "species" or desc.is_leaf():
+					if descrank == "species" or desc.is_leaf():
 						taxid_lendenoms[node.name] += taxid_genelen[desc.name] #if sp add full markers
 					else:
 						for seq in taxid_counts[desc.name]:
@@ -515,14 +515,14 @@ def main(argv):
 					for seq in taxid_counts[desc.name]:
 						if seq not in taxid_counts[node.name]:
 							taxid_counts[node.name].append(seq)
-		else:
+		elif rank == "species":
 			#add full seq since is species
-			
+			#if node.name in taxid_genelen: #avoids case where there is a strain without dedicated taxid
+
 			taxid_lendenoms[node.name] += taxid_genelen[node.name]
 			relab_levels['species'].append(node.name)
 			if node.name not in taxid_counts:
 				orphan_children.append(node.name)
-
 
 	#determine if all hits have all levels
 
