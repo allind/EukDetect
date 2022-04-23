@@ -16,16 +16,18 @@ cd EukDetect
 
 **Download EukDetect database from Figshare**
 
+***Update 4/22/2022 - New database uploaded on Figshare with files required for estimating eukaryotic relative abundance.***
+
 ***NEW DATABASE 1/23/2021 - MUCH LARGER TAXONOMIC COVERAGE***
 
-Download and unpack the EukDetect database (eukdetect_database_v1.tar.gz) from the [Figshare repository](https://doi.org/10.6084/m9.figshare.12670856.v6)
+Download and unpack the EukDetect database (eukdetect_database_v2.tar.gz) from the [Figshare repository](https://doi.org/10.6084/m9.figshare.12670856.v8)
 
 The previous version of the EukDetect database (from NCBI genomes only, no chloroplastids and no metazoans other than worms) is [still available](https://doi.org/10.6084/m9.figshare.12670856.v4).
 
 ```
 mkdir eukdb
 cd eukdb
-wget https://ndownloader.figshare.com/files/26173346
+wget https://ndownloader.figshare.com/files/34880610
 tar -zxvf 26173346
 rm 26173346
 ```
@@ -85,11 +87,11 @@ eukdetect --mode printaln --configfile [config file] --cores [cores]
 
 **Running snakemake directly**
 
-EukDetect can also be run directly as a snakemake workflow using the `rules/eukdetect.rules` file, specifying either `runall`, `printaln`, `aln`, or `filter` as the target rule. If you routinely run snakemake jobs on a cluster and wish to run the entire EukDetect pipeline on it, this is the recommended option. Running snakemake directly means there are fewer checks to make sure the input and output are correct.
+EukDetect can also be run directly as a snakemake workflow using the `rules/eukdetect.rules` file, specifying either `runall`, `printaln`, `aln`, or `filter` as the target rule. If you routinely run snakemake jobs on a cluster and wish to run the entire EukDetect pipeline on it, this is the recommended option. If you're running into issues with the eukdetect python package this is also the recommended running option. Running snakemake directly means there are fewer checks to make sure the input and output are correct.
 
 Examples:
 ```
-snakemake --snakefile rules/eukdetect.rules --configfile [config file] --cores 8 runall
+snakemake --snakefile rules/eukdetect.rules --configfile [config file] --cores [cores] runall
 ```
 
 **Important info**
@@ -105,10 +107,10 @@ A list of currently detectable EukDetect species is in Table S2 in the supplemen
 
 A schematic of the eukdetect pipeline and the files created in the pipeline can be found in [eukdetect_pipeline_schematic.pdf](https://github.com/allind/EukDetect/blob/master/eukdetect_pipeline_schematic.pdf).
 
-The main output of EukDetect are the files `{output_directory}/{samplename}_stats_per_filtered_taxid.txt` and `{output_directory}/{samplename}_hit_taxonomy_filterpass.txt`. 
+The main output of EukDetect are the files `{output_directory}/{samplename_filtered_hits_table.txt` and `{output_directory}/{samplename}_filtered_hits_eukfrac`. 
 
-`{samplename}_stats_per_filtered_taxid.txt` reports: 
-  * the observed taxon's name
+`{samplename}_filtered_hits_table.txt` reports: 
+  * the observed taxon's name, taxonomic rank, taxonomic lineage, and NCBI taxonomy ID (all from the NCBI taxonomy database)
   * how many marker genes had >1 aligned read
   * the overall number of reads aligning to marker genes from this taxon
   
@@ -117,26 +119,21 @@ It also reports three statistics calculated from these numbers, which are:
   * Total_marker_coverage: of the markers that are observed for that taxon, what percentage of the bases in that marker gene have one or more aligned reads
   * Percent_identity: the percent identity calculated across all reads aligning to that taxon's marker gene
 
-`{samplename}_hit_taxonomy_filterpass.txt` is a taxonomy tree of all observed taxa, and it reports:
-  * Markers_Obs: The number of markers observed at that taxonomic node (includes all markers in node children)
-  * Total_Markers: The total number of markers that can be observed (includes all markers in node children)
-  * Percent_Makers_Obs: Percentage of total_markers observed at this node
-  * Percent_ID: percent identity shown in `{samplename}_stats_per_filtered_taxid.txt`. Only calculated if reads are assigned to this exact node, not to node children.
-  * Marker_read_count: number of reads aligning to markers at this node (including markers of node children).
-  * Rank: NCBI taxonomy rank of node
+`{samplename}_filtered_hits_eukfrac.txt` reports the taxonomic lineage of all hits, along with a calculation of ```RPKS (Reads Per Kilobase of Sequence```, which is related to the absolute abundance of taxa, and ```EukFrac (Eukaryotic Fraction)```, which is related to the abundance of taxa relative to other eukaryotes. RPKS is calculated by dividing the reads aligned to markers by the length in Kb of all markers for a species. The EukFrac relative abundance is calculated for each of 6 taxonomic levels - phylum, order, class, family, genus, and species. If any hit does not have one of these taxonomic levels (which occasionally happens in the NCBI taxonomy database), the EukFrac is not calculated for that taxonomic level.
+
+**Important Note**:
+It is **very important** to note that the EukFrac metric is only relative to **other eukaryotes** and not to bacteria or archaea, which almost always make up the majority of a microbiome sequencing library. The EukFrac metric must be considered alongside a proxy for the absolute abundance of taxa, which is RPKS. I strongly discourage directly comparing changes in EukFrac alone between samples (such as is commonly done with stacked bar charts) because the fraction of the sequencing library comprised by eukaryotes is so small and these measures are noisy.
 
 EukDetect removes all taxa that have fewer than 4 reads that align to fewer than 2 marker genes. This is the minimum amount of evidence we recommend for determining if a eukaryotic species is present. However, the same information as the main output files without any filtering is located in the `{output_directory}/filtering/` folder. Information about reads aligning to each marker is in `{output_directory}/filtering/{samplename}_read_counts_and_mismatches.txt`.
 
-Alignments to the databse that have been length and quality filtered are in a coordinate-sorted bam file in the `{output_directory}/aln/` folder. Alignments that additionally have low-complexity and duplicate reads removed are in a bam file in `{output_directory/filtering/`.
+Alignments to the database that have been length and quality filtered are in a coordinate-sorted bam file in the `{output_directory}/aln/` folder. Alignments that additionally have low-complexity and duplicate reads removed are in a bam file in `{output_directory/filtering/`.
 
 ## Citation
 
-If you use EukDetect, please cite our [preprint on biorxiv](https://www.biorxiv.org/content/10.1101/2020.07.22.216580v1).
+If you use EukDetect, please cite the [paper in _Microbiome_](https://microbiomejournal.biomedcentral.com/articles/10.1186/s40168-021-01015-y).
 
 <a id="1"></a> 
-Lind, A. L. and K.S. Pollard. (2020).
-Accurate and sensitive detection of microbial eukaryotes from metagenomic shotgun sequencing data.
-bioRxiv. 2020.07.22.216580. doi: https://doi.org/10.1101/2020.07.22.216580
+Lind, A.L., Pollard, K.S. Accurate and sensitive detection of microbial eukaryotes from whole metagenome shotgun sequencing. Microbiome 9, 58 (2021).
 
 
 ## Taxonomy database version
