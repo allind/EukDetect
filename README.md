@@ -28,8 +28,8 @@ The previous version of the EukDetect database (from NCBI genomes only, no chlor
 mkdir eukdb
 cd eukdb
 wget https://ndownloader.figshare.com/files/34880610
-tar -zxvf 26173346
-rm 26173346
+tar -zxvf 34880610
+rm 34880610
 ```
 
 The uncompressed database folder is 2.6 Gb in size.
