@@ -471,7 +471,10 @@ def main(argv):
 					taxid_counts[g] = []
 				taxid_counts[g].append(seq)
 
+	#calculate seqs and seqlens for each taxonomic node. this goes top-down
 	for node in primary_tree.traverse():
+
+		#get lineage name
 		lin_name = ""
 		currname = [ncbi.get_taxid_translator([node.name])[e] for e in ncbi.get_taxid_translator([node.name])][0]
 		lineage = ncbi.get_lineage(node.name)
@@ -479,64 +482,96 @@ def main(argv):
 		ranks = ncbi.get_rank(ncbi.get_lineage(node.name))
 		ranks_rev = {ranks[e]:e for e in ranks}
 
+
+		#print(lineage)
+		#print(ranks)
+		#print(ranks_rev)
+		prev_rank = ranks[lineage[-2]]
+
+
 		for i in ordered_labels:
 			if i in ranks_rev:
 				lin_name += i + "-" + names[ranks_rev[i]] + "|"
 		lin_name = lin_name.strip('|').replace(' ', "_")
 		lineages[node.name] = lin_name
 
+		#init taxid_lendenoms and taxid_counts if does not exist
 		if node.name not in taxid_lendenoms:
 			taxid_lendenoms[node.name] = 0
 		if node.name not in taxid_counts:
 			taxid_counts[node.name] = []
 
+
+
 		rank = [ncbi.get_rank([node.name])[e] for e in ncbi.get_rank([node.name])][0]
-		if node.is_leaf() == False:
+
+
+
+		#if node.is_leaf() == False and rank != "species":
+		#if rank != "species":	
+		if rank in relab_levels:
+			relab_levels[rank].append(node.name)
+
+		if rank != "species" and prev_rank != "species": #if not a species or a strain, add individuals
+			#add indiv seqs
+			for seq in taxid_counts[node.name]:
+				taxid_lendenoms[node.name] += seq[4]
+
+		if (rank == "species" or prev_rank == "species") and node.name in taxid_genelen:
+			taxid_lendenoms[node.name] += taxid_genelen[node.name]	
+
+		for desc in node.iter_descendants():
+			if desc.name in taxid_counts:
+				descrank = [ncbi.get_rank([desc.name])[e] for e in ncbi.get_rank([desc.name])][0]
+				
+				dlineage = ncbi.get_lineage(node.name)
+				dnames = ncbi.get_taxid_translator(ncbi.get_lineage(node.name))
+				dranks = ncbi.get_rank(ncbi.get_lineage(node.name))
+				d_prev_rank = dranks[dlineage[-2]]
 			
-			if rank in relab_levels:
-				relab_levels[rank].append(node.name)
 
-			if rank != "species":
-				#add indiv seqs
-				for seq in taxid_counts[node.name]:
-					taxid_lendenoms[node.name] += seq[4]
-			if rank == "species":
-				taxid_lendenoms[node.name] += taxid_genelen[node.name]	
-			for desc in node.iter_descendants():
-				if desc.name in taxid_counts:
-					descrank = [ncbi.get_rank([desc.name])[e] for e in ncbi.get_rank([desc.name])][0]
-
-					if descrank == "species" or desc.is_leaf():
-						taxid_lendenoms[node.name] += taxid_genelen[desc.name] #if sp add full markers
-					else:
-						for seq in taxid_counts[desc.name]:
-							taxid_lendenoms[node.name] += seq[4] #if not sp add submarkers
-
+				if descrank == "species" or d_prev_rank == "species":
+					taxid_lendenoms[node.name] += taxid_genelen[desc.name] #if sp add full markers
+				else:
 					for seq in taxid_counts[desc.name]:
-						if seq not in taxid_counts[node.name]:
-							taxid_counts[node.name].append(seq)
-		elif rank == "species":
+						taxid_lendenoms[node.name] += seq[4] #if not sp add submarkers
+
+				for seq in taxid_counts[desc.name]:
+					if seq not in taxid_counts[node.name]:
+						taxid_counts[node.name].append(seq)
+		#elif node.is_leaf() == False and rank == "species":
+			#stuff
+	#		x = 0
+	#	else: #has to be a strain?
+
 			#add full seq since is species
 			#if node.name in taxid_genelen: #avoids case where there is a strain without dedicated taxid
 
-			taxid_lendenoms[node.name] += taxid_genelen[node.name]
-			relab_levels['species'].append(node.name)
-			if node.name not in taxid_counts:
-				orphan_children.append(node.name)
+	#		taxid_lendenoms[node.name] += taxid_genelen[node.name]
+	#		relab_levels['species'].append(node.name)
+	#		if node.name not in taxid_counts:
+	#			orphan_children.append(node.name)
+
 
 	#determine if all hits have all levels
+
 
 	levels_to_remove = []
 	for tax in filter_passing_taxids:
 		lin = lineages[tax]
-		for group in ordered_labels:
-			if group not in lin:
-				if group not in levels_to_remove:
-					levels_to_remove.append(group)
+		groups = [l.split('-')[0] for l in lin.split('|')]
+		levels = ordered_labels[0:len(groups)]
+
+		if levels != groups:
+			#for g in groups:
+			for l in levels:
+				if l not in groups:
+					if l not in levels_to_remove:
+						levels_to_remove.append(l)
+
 
 	for l in levels_to_remove:
 		relab_levels.pop(l)
-
 
 
 
