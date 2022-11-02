@@ -36,6 +36,8 @@ The uncompressed database folder is 2.6 Gb in size.
 
 **Create conda environment and install EukDetect**
 
+Run this code inside the EukDetect main folder, where the environment.yml file is located.
+
 ```
 conda env update --name eukdetect -f environment.yml
 conda activate eukdetect
