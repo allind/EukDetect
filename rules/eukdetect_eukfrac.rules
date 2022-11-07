@@ -109,8 +109,13 @@ rule remove_low_complexity:
 		drop_complex ="{output_dir}/aln/{sample}_low_complexity.txt"
 	output:
 		temp("{output_dir}/aln/{sample}_aln_q30_lenfilter_complexity.sorted.bam")
-	shell:
-		"samtools view -h {input.inbam} | grep -v -f {input.drop_complex} | samtools view -bS - > {output}"
+
+	run:
+		low_complex = open(input.drop_complex).readlines()
+		if len(low_complex) > 0:
+			shell("samtools view -h {input.inbam} | grep -v -f {input.drop_complex} | samtools view -bS - > {output}")
+		else:
+			shell("samtools view -h {input.inbam} | samtools view -bS - > {output}")
 
 
 rule fixmate:
