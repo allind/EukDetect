@@ -93,7 +93,7 @@ EukDetect can also be run directly as a snakemake workflow using the `rules/eukd
 
 Examples:
 ```
-snakemake --snakefile rules/eukdetect.rules --configfile [config file] --cores [cores] runall
+snakemake --snakefile rules/eukdetect_eukfrac.rules --configfile [config file] --cores [cores] runall
 ```
 
 **Important info**
