@@ -25,7 +25,7 @@ fq_dir: "/path/to/dir"
 database_dir: "/path/to/dir"
 
 #name of database. Default is original genomes only database name
-database_prefix: "all_buscos_v4.fna"
+database_prefix: "ncbi_eukprot_met_arch_markers.fna"
 
 #full path to eukdetect installation folder
 eukdetect_dir: "/path/to/dir"
