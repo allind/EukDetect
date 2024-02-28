@@ -16,9 +16,6 @@ More info on every step of this is below.
 
 
 Requirements:
-- busco>=5.0.0
-- cd-hit-est
-- repeatmasker
 - accessory scripts in the eukdetect/makedb folder (the following instructions assume you have added this directory to your path. if not, run scripts by specifying absolute paths)
 - biopython
 - busco>=5.4.0
