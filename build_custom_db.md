@@ -1,3 +1,5 @@
+<h1>Building a custom EukDetect database</h1>
+
 The process to generate a database is as follows:
 - identify candidate genes in genomes of interest using BUSCO
 - Cluster genes at >97% identity
@@ -67,7 +69,7 @@ To parse this into a readable format that is used by downstream parts of the euk
 
 `count_same_species_clusters_and_remove_multigroup.py buscos_cdhit99_spclusters.txt > buscos_cdhit99_cluster_list.txt`
 
-This step will also discard genes that are clustering at >99% identity across different prefix groups, implying there is an error in their taxonomic assignment.
+This step will also discard genes that are clustering at >99% identity across different prefix groups, implying there is an error in their taxonomic assignment. Information about discarded genes is in `buscos_cdhit99_spcluster_removed_for_multigroup.txt`. If the file is empty, nothing was discarded.
 
 Finally, to create a human-readable table that tells you the number of collapsed genes per species and which species it overlaps with, run:
 
@@ -80,3 +82,38 @@ Once you have removed the species you want to remove, you will now rename the cd
 `rename_cdhit_collapsed.py buscos_rmsp_cdhit99_cluster_list.txt buscos_rmsp_cdhit99.fasta > buscos_rmsp_cdhit99_renamed.fasta`
 
 <h2>Masking clustered database</h2>
+Once the database has been clustered, we use RepeatMasker to mask repetitive sequences in the database. This is done to reduce the likelihood of low complexity reads being considered as informative by eukdetect. Since the goal is to mask low complexity areas and not identify transposable elements, we use hard masking and don't specify a specific species.
+
+RepeatMasker requries short fasta headers, and to keep the gene names informative the eukdetect database fasta headers are long. For this step, we temporarily rename the headers, which we'll restore after the RepeatMasker run. There is a helper set of scripts for this - all this is doing is renaming the fasta headers.
+
+`rename_buscos_sequential_for_rpmasker.py buscos_rmsp_cdhit99_renamed.fasta > buscos_rmsp_cdhit99_renamed_simplename.fasta`
+
+This command also will generate the file busco_rmsp_cdhit99_renamed_busco_seqid_sequential_correspondence.txt
+
+Then, run RepeatMasker (if you're using the dfam container, this will need to be wrapped with the apptainer exec commands):
+
+`RepeatMasker -pa [threads] -qq -noint -norna -dir . buscos_rmsp_cdhit99_renamed_simplename.fasta`
+
+After RepeatMasker has finished you can rename the masked fasta with the following helper script:
+
+`rename_after_rpmasker.py busco_rmsp_cdhit99_renamed_busco_seqid_sequential_correspondence.txt buscos_rmsp_cdhit99_renamed_simplename.fasta.masked > buscos_rmsp_cdhit99_renamed_allmasked.fasta`
+
+We then remove sequences that are >10% masked:
+
+`remove_masked_above_10percent.py buscos_rmsp_cdhit99_renamed_allmasked.fasta > buscos_rmsp_cdhit99_renamed_masked.fasta`
+
+<h2>(Optional) Filtering size outliers</h2>
+
+The next step is to identify length outliers and remove them. The first step is find the top 5 and bottom 5 percentiles for each busco, and the second step removes the outliers. (consider removing, this requires protein length info)
+
+`outlier code`
+
+<h2>Build alignment database</h2>
+
+`code`
+
+
+<h2>Creating pre-computed files for eukdetect</h2>
+
+`specific_and_inherited_markers_per_taxid.txt`, `busco_taxid_link.txt`, and `taxid_cumulativelength.txt`.
+
