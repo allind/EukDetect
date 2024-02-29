@@ -64,7 +64,7 @@ This creates the output files `busco_cdhit99.fasta`, with one single representat
 
 To parse this into a readable format that is used by downstream parts of the eukdetect database creation pipeline, run:
 
-`count_same_species_clusters_and_remove_multigroup.py buscos_cdhit99_spclusters.txt > buscos_cdhit99_cluster_list.txt`
+`count_same_species_clusters_and_remove_multigroup.py buscos.fasta buscos_cdhit99_spclusters.txt > buscos_cdhit99_cluster_list.txt`
 
 This step will also discard genes that are clustering at >99% identity across different prefix groups, implying there is an error in their taxonomic assignment. Information about discarded genes is in `buscos_cdhit99_spcluster_removed_for_multigroup.txt`. If the file is empty, nothing was discarded.
 
