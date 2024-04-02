@@ -111,6 +111,11 @@ The next step is to identify length outliers and remove them. The first step is 
 
 
 <h2>Creating pre-computed files for eukdetect</h2>
+Running EukDetect requires three pre-computed tab delimited files. They are `specific_and_inherited_markers_per_taxid.txt`, `busco_taxid_link.txt`, and `taxid_cumulativelength.txt`.
 
-`specific_and_inherited_markers_per_taxid.txt`, `busco_taxid_link.txt`, and `taxid_cumulativelength.txt`.
+`busco_taxid_link.txt` is a tab delimited file with each BUSCO and the corresponding taxonomy ID that the BUSCO gene belongs to. For most genes, this is the same as the taxonomy ID for the species it came from, but for genes that were collapsed in CD-HIT this can correspond to a higher taxonomic node.
+
+`specific_and_inherited_markers_per_taxid.txt`
+
+`taxid_cumulativelength.txt`
 
