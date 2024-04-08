@@ -70,7 +70,7 @@ This step will also discard genes that are clustering at >99% identity across di
 
 Finally, to create a human-readable table that tells you the number of collapsed genes per species and which species it overlaps with, run:
 
-`count_grouped_genes.py buscos_cdhit99_cluster_list.txt > buscos_cdhit99_collapsed_counts_info.txt`
+`count_grouped_genes.py buscos.fasta buscos_cdhit99_cluster_list.txt > buscos_cdhit99_collapsed_counts_info.txt`
 
 Look through the output of the final table and determine whether you would like to remove any species from downstream analyses. If so, remove genes belonging to those species from the fasta file, and re-run all previous steps in clustering.
 
