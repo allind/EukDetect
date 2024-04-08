@@ -25,7 +25,7 @@ Requirements:
 
 <h2>Identifying candidate genes in genomes of interest</h2>
 <h3>Run BUSCO</h3>
-Gather genomes desired for database. Important note is that there can only be one genome representing a species taxID in the database
+Gather genomes desired for database. Important note is that there can only be one genome representing a species taxID in the database. Keep track of species names and corresponding NCBI taxonomy IDs, as this is necessary for later in the database construction process. Also, at the same time as you download genomes and make a note of species ID - taxonomy ID correspondence, download the NCBI taxonomy database (taxdump.tar.gz at https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/). You will want to save this version of the taxonomy database so that all compute will be done with this.
 
 Run busco with a version greater than 5.4.0 on each genome, using Augustus instead of metaeuk, using a command similar to the following: 
 
@@ -78,6 +78,8 @@ Once you have removed the species you want to remove, you will now rename the cd
 
 `rename_cdhit_collapsed.py buscos_rmsp_cdhit99_cluster_list.txt buscos_rmsp_cdhit99.fasta > buscos_rmsp_cdhit99_renamed.fasta`
 
+This script will also produce the file `buscos_rmsp_cdhit99_collapsed_seqnames.txt`, which will be needed in a later step of database construction to assign taxonomy IDs to genes.
+
 <h2>Masking clustered database</h2>
 Once the database has been clustered, we use RepeatMasker to mask repetitive sequences in the database. This is done to reduce the likelihood of low complexity reads being considered as informative by eukdetect. Since the goal is to mask low complexity areas and not identify transposable elements, we use hard masking and don't specify a specific species.
 
@@ -112,5 +114,22 @@ The next step is to identify length outliers and remove them. The first step is 
 
 <h2>Creating pre-computed files for eukdetect</h2>
 
-`specific_and_inherited_markers_per_taxid.txt`, `busco_taxid_link.txt`, and `taxid_cumulativelength.txt`.
+There are three files to generate that store information for eukdetect. They are: `busco_taxid_link.txt`, `specific_and_inherited_markers_per_taxid.txt`, and `taxid_cumulativelength.txt`.
+
+`busco_taxid_link.txt` is a tab separated file with each gene name and the corresponding taxid. To generate this, you will need a tab delimited file with all of the species names and their corresponding taxids and the output `buscos_rmsp_cdhit99_collapsed_seqnames.txt` from the `rename_cdhit_collapsed.py` script.
+
+If you have not yet set up an ete3 database, or you have but it's for a different version of the NCBI taxonomy database you're building the busco database from, run the command
+
+expanduser
+
+`init_ete3_ncbitaxa.py --taxdump /path/to/taxdump.tar.gz --dbpath /path/to/store/database/`
+
+Ete3 reads and writes, by default, its taxonomy database in `~/.etetoolkit/'. I have not found a way to change where it initially writes this database, but you can move it and then pass it to ete3 from a different location. This script will check to see if you have any databases currently in the .etetoolkit directory, move them to a temporary directory, initialize ete3 with your taxdump.tar.gz file, move the new database to the directory you specify, and then restore the original taxa.sqlite database files. This will save your existing ete3 setup, if you have one.
+
+After you initialize the ete3 database, you should run the following script: 
+
+`get_uncomputed_taxid_per_busco.py species_taxids.txt buscos_rmsp_cdhit99_renamed_masked.fasta buscos_rmsp_cdhit99_collapsed_seqnames.txt > busco_taxid_link.txt`
+
+
+
 
