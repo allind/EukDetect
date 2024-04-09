@@ -131,5 +131,5 @@ After you initialize the ete3 database, you should run the following script:
 `get_uncomputed_taxid_per_busco.py species_taxids.txt buscos_rmsp_cdhit99_renamed_masked.fasta buscos_rmsp_cdhit99_collapsed_seqnames.txt > busco_taxid_link.txt`
 
 
-
+<h2>Optional but strongly recommended: run simulated and real datasets against EukDetect database, screen for possible bacterial genes</h2>
 
