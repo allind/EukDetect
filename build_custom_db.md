@@ -109,7 +109,7 @@ The next step is to identify length outliers and remove them. The first step is 
 
 <h2>Build alignment database</h2>
 
-`code`
+`bowtie2-build buscos_rmsp_cdhit99_renamed_masked.fasta all_buscos --threads [threadcount]`
 
 
 <h2>Creating pre-computed files for eukdetect</h2>
