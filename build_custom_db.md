@@ -108,9 +108,11 @@ The next step is to identify length outliers and remove them. The first step is 
 `outlier code`
 
 <h2>Build alignment database</h2>
+Build bowtie2 alignment database.
 
 `bowtie2-build buscos_rmsp_cdhit99_renamed_masked.fasta all_buscos --threads [threadcount]`
 
+Depending on the size of the database, you may need to add the `--large-index` option (this is true for the default EukDetect database, ~6 Gb of sequence).
 
 <h2>Creating pre-computed files for eukdetect</h2>
 
