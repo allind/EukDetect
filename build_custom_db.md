@@ -131,7 +131,11 @@ Ete3 reads and writes, by default, its taxonomy database in `~/.etetoolkit/'. I 
 After you initialize the ete3 database, you should run the following script: 
 
 `get_uncomputed_taxid_per_busco.py species_taxids.txt buscos_rmsp_cdhit99_renamed_masked.fasta buscos_rmsp_cdhit99_collapsed_seqnames.txt > busco_taxid_link.txt`
-
+(warning - depending on how many collapsed sequences you have, this is slow. a tree is built for all species corresponding to a collapsed sequence and the root inferred.)
 
 <h2>Optional but strongly recommended: run simulated and real datasets against EukDetect database, screen for possible bacterial genes</h2>
+
+Despite the controls here to eliminate bacterial contamination, some can still sneak in. Before I use a new database, I like to align a lot of reads both simulated from bacterial genomes and real microbiome sequencing datasets to identify and remove any sequences that seem wonky. Wonky here means - many reads aligning to one gene, usually in a small portion of the gene, and no other genes from that species having hits. Basically, any kind of outlier. How you do this will be up to you and the compute power you can access. 
+
+My favorite way to do this is simulate reads from the [GEM metagenome catalogue](https://www.nature.com/articles/s41587-020-0718-6) with [InSilicoSeq](https://github.com/HadrienG/InSilicoSeq) and align against the new database. This will identify a pretty comprehensive list of potentially bacterial genes (though it has some false positives - some of these MAGs appear to be reverse-contaminated by Malassezia, a common skin fungus). This approach requires the most compute power, but is best if you're using the database to identify eukaryotes in an environmental sample, and also probably a good plan if you're using a non-human host-associated sample as well. Less intensive but still high throughput is to use the same approach but with the [UHGG database](https://www.nature.com/articles/s41587-020-0603-3).
 
