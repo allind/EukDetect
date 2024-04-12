@@ -171,4 +171,6 @@ Bowtie2 database:
 `buscos_rmsp_cdhit99_renamed_masked.fasta.rev.1.bt2l`
 `buscos_rmsp_cdhit99_renamed_masked.fasta.rev.2.bt2l`
 
-Then, in the config file, give the path to this folder as both the `database_dir` and the `taxonomy_dir`, and `buscos_rmsp_cdhit99_renamed_masked.fasta` as the `database_prefix`. You can now run EukDetect with your custom database.
+Then, in the config file, give the path to this folder as both the `database_dir` and the `taxonomy_dir`, and `buscos_rmsp_cdhit99_renamed_masked.fasta` as the `database_prefix`. 
+
+You can now run EukDetect with your custom database.
