@@ -122,8 +122,6 @@ There are three files to generate that store information for eukdetect. They are
 
 If you have not yet set up an ete3 database, or you have but it's for a different version of the NCBI taxonomy database you're building the busco database from, run the command
 
-expanduser
-
 `init_ete3_ncbitaxa.py --taxdump /path/to/taxdump.tar.gz --dbpath /path/to/store/database/`
 
 Ete3 reads and writes, by default, its taxonomy database in `~/.etetoolkit/'. I have not found a way to change where it initially writes this database, but you can move it and then pass it to ete3 from a different location. This script will check to see if you have any databases currently in the .etetoolkit directory, move them to a temporary directory, initialize ete3 with your taxdump.tar.gz file, move the new database to the directory you specify, and then restore the original taxa.sqlite database files. This will save your existing ete3 setup, if you have one.
@@ -131,7 +129,16 @@ Ete3 reads and writes, by default, its taxonomy database in `~/.etetoolkit/'. I 
 After you initialize the ete3 database, you should run the following script: 
 
 `get_uncomputed_taxid_per_busco.py species_taxids.txt buscos_rmsp_cdhit99_renamed_masked.fasta buscos_rmsp_cdhit99_collapsed_seqnames.txt > busco_taxid_link.txt`
-(warning - depending on how many collapsed sequences you have, this is slow. a tree is built for all species corresponding to a collapsed sequence and the root inferred.)
+
+Warning - depending on how many collapsed sequences you have, this is slow. a tree is built for all species corresponding to a collapsed sequence and the root inferred.
+
+To generate the `specific_and_inherited_markers_per_taxid.txt` file, run the following command:
+
+`get_specific_and_inherited_markers.py busco_taxid_link.txt /path/to/taxa.sqlite `
+
+This script will also be slow if you are running this on a large dataset.
+
+
 
 <h2>Optional but strongly recommended: run simulated and real datasets against EukDetect database, screen for possible bacterial genes</h2>
 
