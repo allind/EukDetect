@@ -2,13 +2,12 @@
 
 The process to generate a database is as follows:
 - identify candidate genes in genomes of interest using BUSCO
-- Cluster genes at >97% identity
 - Cluster genes at >99% identity & identify species to remove, if any
 - mask repetitive regions in genes
-- remove genes that are highly masked or size outliers
+- remove genes that are highly masked
 - build alignment database from input fasta of genes
 - create the following precomputed database files for eukdetect: `specific_and_inherited_markers_per_taxid.txt`, `busco_taxid_link.txt`, and `taxid_cumulativelength.txt`.
-- store NCBI taxonomy database release to for ete3
+- save corresponding NCBI taxonomy database release and build ete3 NCBI taxonomy database
 - ideally, sanity check this database for any problematic markers by running the EukDetect pipeline with either real or simulated microbiome sequencing data.
 
 
