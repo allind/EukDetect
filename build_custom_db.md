@@ -101,12 +101,6 @@ We then remove sequences that are >10% masked:
 
 `remove_masked_above_10percent.py buscos_rmsp_cdhit99_renamed_allmasked.fasta > buscos_rmsp_cdhit99_renamed_masked.fasta`
 
-<h2>(Optional) Filtering size outliers</h2>
-
-The next step is to identify length outliers and remove them. The first step is find the top 5 and bottom 5 percentiles for each busco, and the second step removes the outliers. (consider removing, this requires protein length info)
-
-`outlier code`
-
 <h2>Build alignment database</h2>
 Build bowtie2 alignment database.
 
