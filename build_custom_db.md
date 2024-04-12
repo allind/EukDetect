@@ -77,7 +77,9 @@ Finally, to create a human-readable table that tells you the number of collapsed
 
 `count_grouped_genes.py buscos.fasta buscos_cdhit99_cluster_list.txt > buscos_cdhit99_collapsed_counts_info.txt`
 
-Look through the output of the final table and determine whether you would like to remove any species from downstream analyses. If so, remove genes belonging to those species from the fasta file, and re-run all previous steps in clustering.
+Look through the output of the final table and determine whether you would like to remove any species from downstream analyses. If so, remove genes belonging to those species from the fasta file, and re-run all previous steps in clustering. There is a script provided to help with this if desired - `remove_sp_from_buscofile.py`. To use this script, create a text file with species names to remove on separate lines (these must be exact matches to the species name in the busco fasta header).
+
+`remove_sp_from_buscofile.py [busco_fasta] [sp_to_remove_file] > buscos_rmsp.fasta`
 
 Once you have removed the species you want to remove, you will now rename the cd-hit clustered genes with informative names. The options are _SSCollapse (clustered genes are all from the same species), _SPCollapse (clustered genes are all from the same genus), and _MGCollapse (clustered genes are from multiple genuses).
 
