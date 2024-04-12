@@ -128,7 +128,7 @@ Ete3 reads and writes, by default, its taxonomy database in `~/.etetoolkit/'. I 
 
 After you initialize the ete3 database, you should run the following script: 
 
-`get_uncomputed_taxid_per_busco.py species_taxids.txt buscos_rmsp_cdhit99_renamed_masked.fasta buscos_cdhit99_collapsed_seqnames.txt > busco_taxid_link.txt`
+`get_uncomputed_taxid_per_busco.py --speciestax species_taxids.txt --fasta buscos_rmsp_cdhit99_renamed_masked.fasta --collapsed_ids buscos_cdhit99_collapsed_seqnames.txt --taxdb /path/to/taxa.sqlite > busco_taxid_link.txt`
 
 Warning - depending on how many collapsed sequences you have, this is slow. a tree is built for all species corresponding to a collapsed sequence and the root inferred.
 
