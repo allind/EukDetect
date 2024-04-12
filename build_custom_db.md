@@ -11,9 +11,6 @@ The process to generate a database is as follows:
 - ideally, sanity check this database for any problematic markers by running the EukDetect pipeline with either real or simulated microbiome sequencing data.
 
 
-More info on every step of this is below.
-
-
 Requirements:
 - accessory scripts in the eukdetect/build_db folder (the following instructions assume you have added this directory to your path. if not, run scripts by specifying absolute paths)
 - biopython
@@ -155,15 +152,18 @@ My favorite way to do this is simulate reads from the [GEM metagenome catalogue]
 Instead of downloading and using the default EukDetect database, put all of the following files in a single folder and specify that as the location of the EukDetect database:
 
 ETE3 database:
+
 `taxa.sqlite`
 `taxa.sqlite.traverse.pkl`
 
 Pre-computed taxonomy files:
+
 `busco_taxid_link.txt`
 `specific_and_inherited_markers_per_taxid.txt`
 `taxid_cumulativelength.txt`
 
 Bowtie2 database:
+
 `buscos_rmsp_cdhit99_renamed_masked.fasta`
 `buscos_rmsp_cdhit99_renamed_masked.fasta.1.bt2l`
 `buscos_rmsp_cdhit99_renamed_masked.fasta.2.bt2l`
