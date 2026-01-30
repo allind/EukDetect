@@ -1,4 +1,6 @@
 <h1>Building a custom EukDetect database</h1>
+FOR EUKDETECT 1 ONLY
+
 
 The process to generate a database is as follows:
 - identify candidate genes in genomes of interest using BUSCO

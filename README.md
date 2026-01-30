@@ -1,5 +1,9 @@
 # EukDetect
 
+only working as snakemake disregard everything
+
+environment yml is new
+
 ## Installation
 
 **Install conda**
