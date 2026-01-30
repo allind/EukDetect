@@ -27,14 +27,15 @@ def main(argv):
                         name = prefix + '-' + spname + '-' + b + '-S1'
 
                     #fix start and stop
-                    start = line.split('\t')[3]
-                    end = line.split('\t')[4]
+                    chrom=line.split('\t')[2].split(':')[0]
+                    start = line.split('\t')[2].split(':')[1].split('-')[0]
+                    end = line.split('\t')[2].split(':')[1].split('-')[1]
                     if int(start) > int(end):
                         tmp = end
                         end = start
                         start = tmp
                     
-                    dest.write(line.split('\t')[2] + '\t' + start + '\t' + end + '\t' + name + '\ta1000\t' + line.split('\t')[5] + '\n')
+                    dest.write(chrom + '\t' + start + '\t' + end + '\t' + name + '\ta1000\t' + line.split('\t')[5] + '\n')
                     #dest.write('\t'.join(line.split('\t')[2:6]) + '\t' + name + '\n')
     
 if __name__ == "__main__":

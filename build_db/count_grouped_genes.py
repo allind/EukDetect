@@ -1,4 +1,5 @@
 #! /usr/bin/env python
+#usage: script.py [original fasta] [parsed file]
 from Bio import SeqIO
 import sys,re
 def main(argv):
@@ -7,7 +8,7 @@ def main(argv):
     gene_ids = {} #gene_ids[species] = [num_single_buscos,num_duplicated_buscos,total_num_genes,num_grouped_buscos,{species_grouped: count of genes, species_grouped: count of genes}]
     #0 is num_single, 1 is num_dup, 2 is total_num_gnees, 3 is collapsed_buscos, 4 is dict with species identifier of grouped genes and their counts
     for seq in SeqIO.parse(sys.argv[1], 'fasta'):
-        sp = re.split('-\d*at\d*-', '-'.join(seq.id.split('-')[1:]))[0]
+        sp = re.split(r'-\d*at\d*-', '-'.join(seq.id.split('-')[1:]))[0]
         status = seq.id.split('-')[-1]
         if sp not in gene_ids:
             gene_ids[sp] = [0,0,0,0, {}]
@@ -19,21 +20,23 @@ def main(argv):
 
     for line in open(sys.argv[2]):
         line = line.strip('\n')
-        buscos = line.split('\t')[2:-1]
-        species = [re.split('-\d*at\d*-', '-'.join(e.split('-')[1:]))[0] for e in buscos]
-        uniq_species = list(set(species))
-        spcounts = {s: species.count(s) for s in uniq_species}
-        for s in species:
-            gene_ids[s][3] += 1
-            for os in spcounts:
-                if os != s:
-                    if os not in gene_ids[s][4]:
-                        gene_ids[s][4][os] = 0
-                    gene_ids[s][4][os] += spcounts[os]
-                else:
-                    if os not in gene_ids[s][4]:
-                        gene_ids[s][4][os] = 0
-                    gene_ids[s][4][os] += spcounts[os] - 1
+        #buscos = line.split('\t')[2:-1]
+        if "More than on species" in line:
+            buscos = line.split('\t')[3].split(',')
+            species = [re.split('-\d*at\d*-', '-'.join(e.split('-')[1:]))[0] for e in buscos]
+            uniq_species = list(set(species))
+            spcounts = {s: species.count(s) for s in uniq_species}
+            for s in species:
+                gene_ids[s][3] += 1
+                for os in spcounts:
+                    if os != s:
+                        if os not in gene_ids[s][4]:
+                            gene_ids[s][4][os] = 0
+                        gene_ids[s][4][os] += spcounts[os]
+                    else:
+                        if os not in gene_ids[s][4]:
+                            gene_ids[s][4][os] = 0
+                        gene_ids[s][4][os] += spcounts[os] - 1
 
         
 
