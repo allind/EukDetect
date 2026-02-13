@@ -1,170 +1,301 @@
-# EukDetect
+#EukDetect
 
-only working as snakemake disregard everything
+EukDetect is a bioinformatics tool for detecting eukaryotic organisms in metagenomic sequencing data. It uses a curated database of marker genes to identify eukaryotic species present in microbial communities.
 
-environment yml is new
+##Features
 
-## Installation
+- Detect eukaryotic organisms from shotgun metagenomic sequencing data
+- Support for both paired-end and single-end sequencing data
+- Process individual samples or batches in parallel
+- Estimates absolute and relative abundance of detected eukaryotes
+- Comprehensive quality filtering and marker gene coverage analysis
 
-**Install conda**
+##Installation
 
-If you do not have the conda package manager installed already, follow the [instructions](https://docs.conda.io/projects/conda/en/latest/user-guide/install/) to install Miniconda.
+###Option 1: Install from Bioconda (Recommended)
 
-**Download this repository**
+TBD
 
-Download this repository & download the Fishare repo
+###Option 2: Install from GitHub
+
+**Installation steps:**
+
+1. Clone the repository:
 ```
 git clone https://github.com/allind/EukDetect.git
 cd EukDetect
 ```
 
+2. Create the conda environment:
+```
+conda env create -f eukdetect/envs/eukdetect2_environment.yml
+conda activate eukdetect
+```
+
+3. Install EukDetect in development mode:
+```
+pip install -e .
+```
+
+4. Verify installation:
+```
+eukdetect --help
+```
+
+###Database Installation
+
 **Download EukDetect database from Figshare**
 
-***Update 4/22/2022 - New database uploaded on Figshare with files required for estimating eukaryotic relative abundance.***
+Download and unpack the EukDetect database (eukdetect2_database.tar.gz) from the [Figshare repository](https://doi.org/10.6084/m9.figshare.12670856.v8) #update link
 
-***NEW DATABASE 1/23/2021 - MUCH LARGER TAXONOMIC COVERAGE***
-
-Download and unpack the EukDetect database (eukdetect_database_v2.tar.gz) from the [Figshare repository](https://doi.org/10.6084/m9.figshare.12670856.v8)
-
-The previous version of the EukDetect database (from NCBI genomes only, no chloroplastids and no metazoans other than worms) is [still available](https://doi.org/10.6084/m9.figshare.12670856.v4).
+The previous versions of the EukDetect database are [still available](https://doi.org/10.6084/m9.figshare.12670856.v4), but are not compatible with Eukdetect2. #update this
 
 ```
 mkdir eukdb
 cd eukdb
-wget https://ndownloader.figshare.com/files/34885596
-tar -zxvf 34885596
-rm 34885596
+wget [tbd]
+tar -zxvf [tbd]
+rm [tbd]
 ```
 
-The uncompressed database folder is 2.6 Gb in size.
+The uncompressed database folder is around 7 GB.
 
-**Create conda environment and install EukDetect**
+##Quick Start
 
-Run this code inside the EukDetect main folder, where the environment.yml file is located.
+###Single Sample
 
+Process a single paired-end sample:
 ```
-conda env update --name eukdetect -f environment.yml
-conda activate eukdetect
-# install eukdetect
-python setup.py install
-```
-
-**Test installation**
-
-To test your installation, edit the file `configfile_for_tests.yml` with the path to the installation directory and the path to the EukDetect database.
-
-From within the EukDetect installation directory, run:
-
-```
-python tests/test_eukdetect.py
+eukdetect single \
+  -1 sample_R1.fastq.gz \
+  -2 sample_R2.fastq.gz \
+  -n sample_name \
+  --outdir results/ \
+  --database /path/to/eukdetect/database \
+  --database-prefix eukdb \
+  --cores 16
 ```
 
-## Usage
-
-**Edit the config file**
-
-Copy the `default_configfile.yml` to `your_configfile.yml`. Change all parameters in the config file as described.
-
-If you don't know what the length of your reads is, this is a handy one-liner to estimate it: `gzip -dc {file.fastq.gz} | head -n 10000 | awk '{ if (NR%4==2){count++; bases += length}} END{printf "%3.0f\n", bases/count}'`
-
-**Run modes**
-
-A schematic of the eukdetect pipeline and the files created in the pipeline can be found in [the pipeline schematic pdf](https://github.com/allind/EukDetect/blob/master/EukDetect_pipeline_schematic.pdf).
-
-There are *four* eukdetect modes, invoked with `eukdetect --mode`. All modes require a eukdetect config file as described above.
-
-The `runall` mode runs the entire pipeline. 
-
-The `aln` mode runs just the bowtie2 alignment step. 
-
-The `filter` mode runs everything downstream of the alignment. The filter mode can only be run if the alignment step has been completed.
-
-The `printaln` mode  creates a file in the output directory specified in the configfile called alignment_commands.txt. These commands can be run on a compute cluster either sequentially or as a job array. The alignment step of eukdetect is the most computationally intensive step of eukdetect, and this mode is intended for users to run the alignments on a compute cluster if desired.
-
-Examples of eukdetect usage:
-
+Process a single-end sample:
 ```
-eukdetect --mode runall --configfile [config file] --cores [cores]
-eukdetect --mode aln --configfile [config file] --cores [cores]
-eukdetect --mode filter --configfile [config file] --cores [cores]
-eukdetect --mode printaln --configfile [config file] --cores [cores]
+eukdetect single \
+  -1 sample.fastq.gz \
+  -n sample_name \
+  --outdir results/ \
+  --database /path/to/eukdetect/database \
+  --database-prefix eukdb \
+  --cores 16
 ```
 
+Single-sample cores are used to run multi-threaded bowtie2 and are not used for other parts of the pipeline.
 
-**Running snakemake directly**
+There is currently no support for a mixture of paired and single end reads for a sample. 
 
-EukDetect can also be run directly as a snakemake workflow using the `rules/eukdetect.rules` file, specifying either `runall`, `printaln`, `aln`, or `filter` as the target rule. If you routinely run snakemake jobs on a cluster and wish to run the entire EukDetect pipeline on it, this is the recommended option. If you're running into issues with the eukdetect python package this is also the recommended running option. Running snakemake directly means there are fewer checks to make sure the input and output are correct.
+###Multiple Samples (Batch Mode)
 
-Examples:
+1. Create a tab-separated samples file (`samples.tsv`):
+
+For paired-end data:
 ```
-snakemake --snakefile rules/eukdetect_eukfrac.rules --configfile [config file] --cores [cores] runall
+sample_name	reads1	reads2
+sample1	/path/to/sample1_R1.fastq.gz	/path/to/sample1_R2.fastq.gz
+sample2	/path/to/sample2_R1.fastq.gz	/path/to/sample2_R2.fastq.gz
+sample3	/path/to/sample3_R1.fastq.gz	/path/to/sample3_R2.fastq.gz
 ```
 
-**Important info**
+For single-end data:
+```
+sample_name	reads1
+sample1	/path/to/sample1.fastq.gz
+sample2	/path/to/sample2.fastq.gz
+sample3	/path/to/sample3.fastq.gz
+```
 
-Currently, EukDetect only supports analysis of reads that are **over** 75 base pairs long.
+2. Run batch mode:
+```
+eukdetect batch \
+  --samples samples.tsv \
+  --outdir results/ \
+  --database /path/to/eukdetect/database \
+  --database-prefix eukdb \
+  --cores 10
+```
 
-If you are running EukDetect in paired-end mode, the number of reads in both files has to match. If there are different numbers of reads in the forward and reverse files, EukDetect will fail at the alignment phase.
+This will process 10 samples in parallel on your local machine. Bowtie2 will use 1 core by default.
 
-A list of currently detectable EukDetect species is in Table S2 in the supplementary material of the [biorxiv manuscript](https://www.biorxiv.org/content/10.1101/2020.07.22.216580v1).
+##Usage
+
+###Command-line Interface
+
+EukDetect provides two main commands:
+
+####Single Mode
+Process individual samples. Use this for
+- Running one sample at a time
+- HPC job arrays (one job per sample)
+
+```
+eukdetect single [options]
+```
+
+**Required arguments:**
+- `-1, --reads1`: Forward reads (R1) or single-end reads (required)
+- `--outdir, -o`: Output directory (required)
+- `--database, -d`: Path to EukDetect database directory (required)
+
+**Optional arguments:**
+- `-2, --reads2`: Reverse reads (R2) for paired-end data
+- `-n, --sample-name`: Sample name (auto-detected from filename if not provided)
+- `--database-prefix`: Database file prefix (default: eukdb)
+- `--cores, -c`: Number of CPU threads for alignment (default: 1)
+- `--readlen`: Read length (auto-detected if not provided)
+- `--mode`: Analysis mode (default: all)
+- `--dry-run`: Preview commands without executing
+
+####Batch Mode
+Process multiple samples in parallel locally.
+
+```
+eukdetect batch [options]
+```
+
+**Required arguments:**
+- `--samples`: Tab-separated file with sample information (required)
+- `--outdir, -o`: Output directory (required)
+- `--database, -d`: Path to EukDetect database directory (required)
+
+**Optional arguments:**
+- `--database-prefix`: Database file prefix (default: eukdb)
+- `--cores, -c`: Number of samples to process in parallel (default: 1)
+- `--readlen`: Read length in bp (auto-detected if not provided)
+- `--mode`: Analysis mode (default: all)
+- `--dry-run`: Preview workflow without executing
+
+Unlike single batch mode, cores are used to parallelize samples and the alignment step uses a single core per sample.
+
+###Analysis Modes
+
+EukDetect supports four analysis modes via the `--mode` option:
+
+- `all` (default): Run complete pipeline (alignment + filtering + analysis)
+- `aln`: Run alignment step only
+- `analyze`: Run filtering and analysis only (requires existing alignments)
+- `printaln`: Generate file with alignment commands for manual execution
+
+**Examples:**
+
+```bash
+#Run only alignment
+eukdetect single -1 R1.fq.gz -2 R2.fq.gz -n sample -o out/ -d db/ --mode aln --cores 16
+
+#Run analysis on existing alignments
+eukdetect single -1 R1.fq.gz -2 R2.fq.gz -n sample -o out/ -d db/ --mode analyze
+
+#Generate alignment commands for manual execution
+eukdetect single -1 R1.fq.gz -2 R2.fq.gz -n sample -o out/ -d db/ --mode printaln
+```
+
+##Output Files
+
+EukDetect creates the following output directory structure:
+
+```
+results/
+├── configs/
+│   └── config_sample1.yml          
+├── logs/
+│   └── snakemake_sample1_*.log      
+├── aln/
+│   └── sample1_aln_q10_lenfilter.sorted.bam 
+├── filtering/
+│   ├── sample1_aln_q10_lenfilter.dedup.bam
+│   └── sample1_read_counts_and_mismatches.txt
+│   └── sample1_all_hits_table.txt
+├── sample1_filtered_hits_table.txt
+└── sample1_filtered_hits_eukfrac.txt
+```
+
+###Output Files
+
+**`{sample}_filtered_hits_table.txt`** reports for each detected taxon:
+- Taxonomic name, rank, lineage, and NCBI taxonomy ID
+- Number of marker genes with aligned reads
+- Total number of reads aligning to marker genes
+- Percent_observed_markers: percentage of marker genes detected
+- Total_marker_coverage: percentage of bases covered in observed markers
+- Percent_identity: average percent identity across aligned reads
+
+**`{sample}_filtered_hits_eukfrac.txt`** reports:
+- RPKS (Reads Per Kilobase of Sequence): absolute abundance metric for **species-level taxa only**
+- Relative_abundance (EukFrac): relative abundance compared to other eukaryotes at all taxonomic levels
+- Total reads: number of reads aligning to markers at each taxonomic level
+
+**Important Notes:** 
+- The EukFrac (relative abundance) metric is relative only to other eukaryotes, not to bacteria or archaea. Always consider RPKS alongside EukFrac when interpreting results.
+
+## Important Considerations
+
+**Filtering threshholds:** By default, EukDetect removes taxa with fewer than 4 reads aligning to fewer than 2 marker genes. Unfiltered results are available in the `filtering/` directory.
+
+**Read length:** EukDetect supports reads over 75 base pairs long.
+
+**Paired-end data:** Forward and reverse read files must have the same number of reads (properly paired).
+
+**Mixed data:** Cannot mix single-end and paired-end samples in the same batch run. Run them separately.
+
+**File naming:** For batch mode, all samples must use consistent file extensions and naming patterns.
+
+ 
+##Pipeline Overview
+
+A schematic of the EukDetect pipeline is available in [eukdetect_pipeline_schematic.pdf](https://github.com/allind/EukDetect/blob/master/eukdetect_pipeline_schematic.pdf).
+
+The pipeline consists of:
+1. Alignment to marker gene database using bowtie2
+2. Quality filtering (mapping quality, read length)
+3. Removal of low-complexity and duplicate reads
+4. Counting reads per marker gene
+5. Filtering and taxonomic assignment
+6. Abundance estimation
 
 
-## Output file descriptions
+## note - lacks any documentation of combining eukfrac across samples and needing to normalize by sample size
 
-A schematic of the eukdetect pipeline and the files created in the pipeline can be found in [eukdetect_pipeline_schematic.pdf](https://github.com/allind/EukDetect/blob/master/eukdetect_pipeline_schematic.pdf).
+##Testing
 
-The main output of EukDetect are the files `{output_directory}/{samplename_filtered_hits_table.txt` and `{output_directory}/{samplename}_filtered_hits_eukfrac`. 
+Run the test suite to verify your installation:
 
-`{samplename}_filtered_hits_table.txt` reports: 
-  * the observed taxon's name, taxonomic rank, taxonomic lineage, and NCBI taxonomy ID (all from the NCBI taxonomy database)
-  * how many marker genes had >1 aligned read
-  * the overall number of reads aligning to marker genes from this taxon
-  
-It also reports three statistics calculated from these numbers, which are:
-  * Percent_observed_markers: the percentage of the total marker genes of that species that are observed
-  * Total_marker_coverage: of the markers that are observed for that taxon, what percentage of the bases in that marker gene have one or more aligned reads
-  * Percent_identity: the percent identity calculated across all reads aligning to that taxon's marker gene
+```
+pytest tests/ -v
+```
 
-`{samplename}_filtered_hits_eukfrac.txt` reports the taxonomic lineage of all hits, along with a calculation of ```RPKS (Reads Per Kilobase of Sequence```, which is related to the absolute abundance of taxa, and ```EukFrac (Eukaryotic Fraction)```, which is related to the abundance of taxa relative to other eukaryotes. RPKS is calculated by dividing the reads aligned to markers by the length in Kb of all markers for a species. The EukFrac relative abundance is calculated for each of 6 taxonomic levels - phylum, order, class, family, genus, and species. If any hit does not have one of these taxonomic levels (which occasionally happens in the NCBI taxonomy database), the EukFrac is not calculated for that taxonomic level.
+##Citation
 
-**Important Note**:
-It is **very important** to note that the EukFrac metric is only relative to **other eukaryotes** and not to bacteria or archaea, which almost always make up the majority of a microbiome sequencing library. The EukFrac metric must be considered alongside a proxy for the absolute abundance of taxa, which is RPKS. I strongly discourage directly comparing changes in EukFrac alone between samples (such as is commonly done with stacked bar charts) because the fraction of the sequencing library comprised by eukaryotes is so small and these measures are noisy.
+If you use EukDetect, please cite the [paper in _Microbiome_](https://microbiomejournal.biomedcentral.com/articles/10.1186/s40168-021-01015-y):
 
-EukDetect removes all taxa that have fewer than 4 reads that align to fewer than 2 marker genes. This is the minimum amount of evidence we recommend for determining if a eukaryotic species is present. However, the same information as the main output files without any filtering is located in the `{output_directory}/filtering/` folder. Information about reads aligning to each marker is in `{output_directory}/filtering/{samplename}_read_counts_and_mismatches.txt`.
-
-Alignments to the database that have been length and quality filtered are in a coordinate-sorted bam file in the `{output_directory}/aln/` folder. Alignments that additionally have low-complexity and duplicate reads removed are in a bam file in `{output_directory/filtering/`.
-
-## Citation
-
-If you use EukDetect, please cite the [paper in _Microbiome_](https://microbiomejournal.biomedcentral.com/articles/10.1186/s40168-021-01015-y).
-
-<a id="1"></a> 
 Lind, A.L., Pollard, K.S. Accurate and sensitive detection of microbial eukaryotes from whole metagenome shotgun sequencing. Microbiome 9, 58 (2021).
 
+##Taxonomy Database Version
 
-## Taxonomy database version
+The EukDetect pipeline uses the ete3 package to interface with the NCBI taxonomy database. The database uses the NCBI taxonomy release from January 14, 2020. The Figshare repository includes both the taxdump file and the ete3 sqlite database.
 
-**This section is only necessary to read if you are getting errors from the ete3 package.**
-
-The EukDetect pipeline uses the ete3 package to interface with the NCBI taxonomy database. In order for the EukDetect pipeline to run correctly, ete3 must use the NBCI taxonomy database corresponding to the January 14, 2020 taxonomy release. The Figshare repository for the EukDetect database has both the taxdump_1_14_2020.tar.gz file, as well as the ete3 sqlite database (in files taxa.sqlite and taxa.sqlite.traverse.pkl). EukDetect uses the database located in this folder.
-
-It may be possible that updates to the ete3 package, or differences in operating systems, might result in ete3 not being able to correctly parse the database. If this happens, users will need to create their own taxonomy database from taxdump_1_14_2020.tar.gz. By default, ete3 saves the taxonomy database in ~/.etetoolkit in the home directory of the user, so this file will need to be moved into the EukDetect database directory. If you use ete3 outside of EukDetect, you may run the ete3 function update_taxonomy_database(), which will download the newest NCBI taxonomy database and overwrite the taxonomy database in ~/.etetoolkit. Therefore, this file needs to be moved to a location where it will not be overwritten.
-
-**Solution**
-
-If you use the ete3 package outside of EukDetect and you have a specific version of the NCBI taxonomy database installed, copy ~/.etetoolkit/taxa.sqlite and ~/.etetoolkit/taxa.sqlite.traverse.pkl to temporary files that you will restore afterwards. Otherwise, this process will overwrite any existing files and you will lose the data.
+If you encounter errors from the ete3 package, you may need to regenerate the taxonomy database:
 
 ```
 conda activate eukdetect
 ```
 
-open a Python console and run the following code:
+Open a Python console and run:
 
-```
+```python
 from ete3 import NCBITaxa
 ncbi = NCBITaxa()
 ncbi.update_taxonomy_database(taxdump_file="taxdump_1_14_2020.tar.gz")
 exit()
 ```
 
-Now, remove the taxa.sqlite and taxa.sqlite.traverse.pkl file from the database folder, and find the newly created taxa.sqlite and taxa.sqlite.traverse.pkl files. This file will be located in your home directory in ~/.etetoolkit/. Move these file into the EukDetect database folder. If you moved your existing taxa.sqlite files to temporary files, restore them to ~/.etetoolkit.
+Move the newly created `taxa.sqlite` and `taxa.sqlite.traverse.pkl` files from `~/.etetoolkit/` to the EukDetect database folder.
+
+##License
+
+EukDetect is distributed under the MIT License. See LICENSE file for details.

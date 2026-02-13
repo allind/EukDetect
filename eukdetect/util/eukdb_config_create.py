@@ -1,6 +1,6 @@
-#! /usr/bin/env python
+#!/usr/bin/env python
 #usage: script.py -fp fwd_prefix -rp rev_prefix -outdir [dir] -fd fastq_dir -t taxonomy_dir -o [config dest file]
-#this will estimate your readlen
+
 
 import sys,subprocess, shlex, os, argparse
 def main(argv):
@@ -15,11 +15,7 @@ def main(argv):
 	parser.add_argument("-o", type=str, action="store", dest="outdest", default="config.yml", help="output config file")
 	parser.add_argument("-readmin", type=str, action="store", dest="readmin", help="minimum read length")
 	args = parser.parse_args()
-	#note: will need to standardize names of things in taxonomy directory
 
-
-	#print(args.outdir, args.fs, args.rs, args.taxdir, args.fqdir)
-	#iterate over the fq dir and get sample names
 	samples = []
 	if os.path.isdir(args.fqdir):
 		for f in os.listdir(args.fqdir):

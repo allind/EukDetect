@@ -1,0 +1,196 @@
+#targets
+
+rule all:
+	input:
+		expand("{output_dir}/aln/{sample}_aln_q10_lenfilter.sorted.bam", sample=config["samples"], output_dir=config["output_dir"]),
+		expand("{output_dir}/filtering/{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam", sample=config["samples"], output_dir=config["output_dir"]),
+		expand("{output_dir}/filtering/{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam.bai", sample=config["samples"], output_dir=config["output_dir"]),
+		expand("{output_dir}/filtering/{sample}_read_counts_and_mismatches.txt", sample=config["samples"], output_dir=config["output_dir"]), 
+		expand("{output_dir}/filtering/{sample}_all_hits_table.txt", sample=config["samples"], output_dir=config["output_dir"]), 
+		expand("{output_dir}/{sample}_filtered_hits_table.txt", sample=config["samples"], output_dir=config["output_dir"]), 
+		expand("{output_dir}/{sample}_filtered_hits_eukfrac.txt", sample=config["samples"], output_dir=config["output_dir"])
+
+rule printaln:
+	input:
+		config["output_dir"] + "/alignment_commands.txt"
+
+rule aln:
+	input:	
+		expand("{output_dir}/aln/{sample}_aln_q10_lenfilter.sorted.bam", sample=config["samples"], output_dir=config["output_dir"])
+
+rule analyze:
+	input:
+		expand("{output_dir}/filtering/{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam", sample=config["samples"], output_dir=config["output_dir"]),
+		expand("{output_dir}/filtering/{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam.bai", sample=config["samples"], output_dir=config["output_dir"]),
+		expand("{output_dir}/filtering/{sample}_read_counts_and_mismatches.txt", sample=config["samples"], output_dir=config["output_dir"]), 
+		expand("{output_dir}/filtering/{sample}_all_hits_table.txt", sample=config["samples"], output_dir=config["output_dir"]), 
+		expand("{output_dir}/{sample}_filtered_hits_table.txt", sample=config["samples"], output_dir=config["output_dir"]),
+		expand("{output_dir}/{sample}_filtered_hits_eukfrac.txt", sample=config["samples"], output_dir=config["output_dir"])
+
+#rules
+
+rule alncmd:
+	output:
+		config["output_dir"] + "/alignment_commands.txt"
+	run:
+		import os
+		db = os.path.join(config["database_dir"], config["database_prefix"])
+		samples = config["samples"]
+		output_dir = config["output_dir"]
+		fq_dir = config["fq_dir"]
+		paired_end = config["paired_end"]
+		readlen = config["readlen"]
+		cores = config.get("bowtie2_cores", 1)
+		minreadlen = max(60, int(round(readlen * 0.8)))
+
+		with open(output[0], "w") as out:
+			for sample in samples:
+				if paired_end:
+					r1 = os.path.join(fq_dir, f"{sample}{config['fwd_suffix']}")
+					r2 = os.path.join(fq_dir, f"{sample}{config['rev_suffix']}")
+					bam = os.path.join(output_dir, f"aln/{sample}_aln_q10_lenfilter.sorted.bam")
+					cmd = f"""
+					bowtie2 -p {cores} --quiet --omit-sec-seq --no-discordant --no-unal -x {db} -1 {r1} -2 {r2} |
+					perl -lane "$l = 0; $F[5] =~ s/(\\d+)[MX=DN]/$l+=$1/eg; print if $l > {minreadlen} or /^@/" |
+					samtools view -q 30 -bS - |
+					samtools sort -o {bam} -
+					"""
+				else:
+					fq = os.path.join(fq_dir, f"{sample}{config['se_suffix']}")
+					bam = os.path.join(output_dir, f"aln/{sample}_aln_q10_lenfilter.sorted.bam")
+					cmd = f"""
+					bowtie2 -p {cores} --quiet --omit-sec-seq --no-discordant --no-unal -x {db} -U {fq} | 
+					perl -lane "$l = 0; $F[5] =~ s/(\\d+)[MX=DN]/$l+=$1/eg; print if $l > {minreadlen} or /^@/" |
+					samtools view -q 30 -bS - | 
+					samtools sort -o {bam} - 
+					"""
+				out.write(cmd + "\n")
+
+
+
+rule runaln:
+	input:
+		r1 = lambda wildcards: config["fq_dir"] + "/" + wildcards.sample + (config["fwd_suffix"] if config["paired_end"] else config["se_suffix"]),
+		r2 = lambda wildcards: config["fq_dir"] + "/" + wildcards.sample + config["rev_suffix"] if config["paired_end"] else []
+	output:
+		bam = config["output_dir"] + "/aln/{sample}_aln_q10_lenfilter.sorted.bam"
+	threads: config.get("bowtie2_cores", 1)
+	run:
+		import os
+		db = os.path.join(config["database_dir"], config["database_prefix"])
+		readlen=config["readlen"]
+		cores = threads  # Use threads from Snakemake
+		minreadlen = round(readlen * 0.8, 0)
+		if minreadlen < 60:
+			minreadlen = 60
+		if config["paired_end"]:
+			shell("""
+				bowtie2 -p {cores} --quiet --omit-sec-seq --no-discordant --no-unal -x {db} -1 {input.r1} -2 {input.r2} |
+				perl -lane '$l = 0; $F[5] =~ s/(\\d+)[MX=DN]/$l+=$1/eg; print if $l > {minreadlen} or /^@/' |
+				samtools view -q 30 -bS - |
+				samtools sort -o {output.bam} -
+			""")
+		else:
+			shell("""
+				bowtie2 -p {cores} --quiet --omit-sec-seq --no-discordant --no-unal -x {db} -U {input.r1} | 
+				perl -lane '$l = 0; $F[5] =~ s/(\\d+)[MX=DN]/$l+=$1/eg; print if $l > {minreadlen} or /^@/' | 
+				samtools view -q 30 -bS - | 
+				samtools sort -o {output.bam} - 
+			""")
+
+
+rule bam2fastq:
+	input:
+		bam = config["output_dir"] + "/aln/{sample}_aln_q10_lenfilter.sorted.bam"
+	output:
+		temp(config["output_dir"] + "/aln/{sample}_aln_q10_lenfilter.fq")
+	shell:
+		"bedtools bamtofastq -i {input.bam} -fq {output}"
+
+rule find_low_complexity:
+	input:
+		fq = config["output_dir"] + "/aln/{sample}_aln_q10_lenfilter.fq"
+	output:
+		temp(config["output_dir"] + "/aln/{sample}_low_complexity.txt")
+	shell:
+		"cat {input.fq} | kz | awk '{{ if ($4<0.5) print $1 }}' > {output}"
+
+rule remove_low_complexity:
+	input:
+		inbam = config["output_dir"] + "/aln/{sample}_aln_q10_lenfilter.sorted.bam",
+		drop_complex = config["output_dir"] + "/aln/{sample}_low_complexity.txt"
+	output:
+		temp(config["output_dir"] + "/aln/{sample}_aln_q10_lenfilter_complexity.sorted.bam")
+	run:
+		import os
+		low_complex = open(input.drop_complex).readlines()
+		if os.path.getsize(input.drop_complex) > 0:
+			shell("samtools view -h {input.inbam} | grep -v -f {input.drop_complex} | samtools view -bS - > {output[0]}")
+		else:
+			shell("samtools view -h {input.inbam} | samtools view -bS - > {output[0]}")
+
+
+rule fixmate:
+	input:
+		inbam = config["output_dir"] + "/aln/{sample}_aln_q10_lenfilter_complexity.sorted.bam"
+	output:
+		temp(config["output_dir"] + "/filtering/{sample}_aln_q10_lenfilter_complexity_fixmate.bam")
+	shell:
+		"""
+		samtools sort -n {input.inbam} | samtools fixmate -m - {output}
+		"""
+
+rule markdup:
+	input:
+		config["output_dir"] + "/filtering/{sample}_aln_q10_lenfilter_complexity_fixmate.bam"
+	output:
+		temp(config["output_dir"] + "/filtering/{sample}_aln_q10_lenfilter_complexity_rmdup.bam")
+	shell:
+		"""
+		samtools sort {input} | samtools markdup -r -s - {output}
+		"""
+
+rule rmsort:
+	input:
+		config["output_dir"] + "/filtering/{sample}_aln_q10_lenfilter_complexity_rmdup.bam"
+	output:
+		config["output_dir"] + "/filtering/{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam"
+	shell:
+		"""
+		samtools sort -o {output} {input}
+		"""	
+
+rule index:
+	input:
+		bam = config["output_dir"] + "/filtering/{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam"
+	output:
+		bai = config["output_dir"] + "/filtering/{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam.bai"
+	shell:
+		"samtools index {input.bam} {output.bai}"
+
+rule countreads:
+	input:
+		bam = config["output_dir"] + "/filtering/{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam",
+		bai = config["output_dir"] + "/filtering/{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam.bai",
+		countscript = config["eukdetect_dir"] + "/util/bam_to_pid.py",
+		ref = config["database_dir"] + "/" + config["database_prefix"] + ".fasta"
+	output:
+		counts = config["output_dir"] + "/filtering/{sample}_read_counts_and_mismatches.txt"
+	shell:
+		"python {input.countscript} {input.bam} {input.ref} > {output.counts}"
+
+rule taxonomize:
+	input:
+		counts = config["output_dir"] + "/filtering/{sample}_read_counts_and_mismatches.txt",
+		script = config["eukdetect_dir"] + "/util/eukfrac_calc.py",
+		taxid_link = config["database_dir"] + "/busco_taxid_genome_link.txt",
+		inherited_markers = config["database_dir"] + "/specific_and_inherited_markers_per_taxid.txt",
+		taxdb = config["database_dir"] + "/taxa.sqlite",
+		genelens = config["database_dir"] + "/taxid_and_genome_cumulativelength.txt"
+	output:
+		allhits = config["output_dir"] + "/filtering/{sample}_all_hits_table.txt",
+		primary_hits = config["output_dir"] + "/{sample}_filtered_hits_table.txt",
+		primary_eukfrac = config["output_dir"] + "/{sample}_filtered_hits_eukfrac.txt"
+	shell:
+		"python {input.script} --dbfile {input.taxdb} --taxid_link {input.taxid_link} --inherited_markers {input.inherited_markers} --taxid_genelens {input.genelens} --readcounts {input.counts} --primarytab {output.primary_hits} --eukfrac {output.primary_eukfrac} --alltab {output.allhits}"
+

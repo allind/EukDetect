@@ -1,0 +1,4 @@
+sample_name	reads1
+sample1	/path/to/data/sample1.fastq.gz
+sample2	/path/to/data/sample2.fastq.gz
+sample3	/path/to/data/sample3.fastq.gz
