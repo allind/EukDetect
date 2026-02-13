@@ -1,2 +1,0 @@
-[console_scripts]
-eukdetect = eukdetect.runall:main
