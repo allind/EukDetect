@@ -277,7 +277,7 @@
  
 ## Taxonomy Database Version
  
- The EukDetect pipeline uses the ete3 package to interface with the NCBI taxonomy database. The database uses the NCBI taxonomy release from January 14, 2020. The Figshare repository includes both the taxdump file and the ete3 sqlite database.
+ The EukDetect pipeline uses the ete3 package to interface with the NCBI taxonomy database. The database uses the NCBI taxonomy release from early 2026. The Figshare repository includes both the taxdump file and the ete3 sqlite database.
  
  If you encounter errors from the ete3 package, you may need to regenerate the taxonomy database:
  
@@ -287,7 +287,7 @@
  
  Open a Python console and run:
  
- ```python
+ ```
  from ete3 import NCBITaxa
  ncbi = NCBITaxa()
  ncbi.update_taxonomy_database(taxdump_file="taxdump_1_14_2020.tar.gz")
