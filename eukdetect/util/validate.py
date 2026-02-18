@@ -209,8 +209,8 @@ def check_filter_outputs(config: dict, force: bool) -> None:
 	existing = []
 	for sample in samples:
 		files = [
-			output_dir / "filtering" / f"{sample}aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam",
-			output_dir / "filtering" / f"{sample}aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam.bai",
+			output_dir / "filtering" / f"{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam",
+			output_dir / "filtering" / f"{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam.bai",
 			output_dir / "filtering" / f"{sample}_read_counts_and_mismatches.txt",
 			output_dir / "filtering" / f"{sample}_all_hits_table.txt",
 			output_dir / f"{sample}_filtered_hits_table.txt",
@@ -239,7 +239,7 @@ def check_alignment_inputs(config: dict) -> None:
 	
 	missing = []
 	for sample in samples:
-		aln_file = output_dir / "aln" / f"{sample}aln_q10_lenfilter.sorted.bam"
+		aln_file = output_dir / "aln" / f"{sample}_aln_q10_lenfilter.sorted.bam"
 		if not aln_file.exists():
 			missing.append(str(aln_file))
 	

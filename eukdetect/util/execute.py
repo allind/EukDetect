@@ -86,6 +86,7 @@ class SnakemakeExecutor:
 			args.append("aln")
 		elif self.mode == "analyze":
 			args.append("analyze")
+			args.extend(["--rerun-triggers", "mtime"])
 		elif self.mode == "printaln":
 			args.append("printaln")
 		# 'all' is default, no need to specify

@@ -382,11 +382,14 @@ def execute(args):
 				config_dir.mkdir(parents=True, exist_ok=True)
 				
 				if args.run_type == 'single':
-
+	# Single mode: use sample name + run number
 					sample_names = list(config_dict['samples'].keys())
 					if sample_names:
-						sample_name = sample_names[0]  #Should only be one sample
-						config_path = config_dir / f"config_{sample_name}.yml"
+						sample_name = sample_names[0]
+						run_num = 1
+						while (config_dir / f"config_{sample_name}_{run_num}.yml").exists():
+							run_num += 1
+						config_path = config_dir / f"config_{sample_name}_{run_num}.yml"
 					else:
 						#Fallback if no sample name found
 						config_path = config_dir / "config_single.yml"

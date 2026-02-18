@@ -244,7 +244,8 @@
  **Mixed data:** Cannot mix single-end and paired-end samples in the same batch run. Run them separately.
  
  **File naming:** For batch mode, all samples must use consistent file extensions and naming patterns.
- 
+
+**Comparing across samples:** RPKS cannot be directly compared between samples without first normalizing by library size.
   
 ## Pipeline Overview
  
@@ -258,6 +259,51 @@
  5. Filtering and taxonomic assignment
  6. Abundance estimation
  
+
+## Normalizing RPKS Across Samples
+
+RPKS values from EukDetect are not normalized by total sequencing depth. This means RPKS values cannot be directly compared across samples with different library sizes. To enable cross-sample comparisons and to combine RPKS and eukfrac data across samples into one file, use the provided normalization script ```eukdetect/util/normalize_rpks.py```
+
+The normalization script produces a combined table with additional columns:
+
+- **Sample**: Sample name
+- **Library_size**: Total reads in the library
+- **RPSKM**: Normalized abundance (RPKS per million total reads)
+
+RPKSM values are only calculated for species-level taxa. Higher taxonomic levels show "NA" for RPKSM.
+
+**Usage:**
+```bash
+python eukdetect/util/normalize_rpks.py \
+  --eukfrac results/*_filtered_hits_eukfrac.txt \
+  --library-sizes library_sizes.tsv \
+  --output all_samples_normalized.tsv
+```
+
+**Preparing Library Sizes File**
+Create a tab-separated file with sample names and total read counts:
+
+```
+sample_name	total_reads
+sample1	50000000
+sample2	75000000
+sample3	100000000
+```
+
+**To count reads from FASTQ files:**
+
+```bash
+# Create header
+echo -e "sample_name\ttotal_reads" > library_sizes.tsv
+
+# Count reads for each sample
+for sample in sample1 sample2 sample3; do
+    count=$(zcat ${sample}_1.fastq.gz | echo $((`wc -l`/4)))
+    echo -e "${sample}\t${count}" >> library_sizes.tsv
+done
+```
+
+
  
 ##  note - lacks any documentation of combining eukfrac across samples and needing to normalize by sample size
  

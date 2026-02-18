@@ -15,14 +15,6 @@ setuptools.setup(
 		entry_points={"console_scripts": ["eukdetect = eukdetect.wrappers.main:main"]},
 		packages=setuptools.find_packages(),
 		python_requires=">=3.8",
-		install_requires=[
-			"pyyaml>=5.4",
-			"pandas>=1.3.0",
-			"biopython>=1.79",
-			"pysam>=0.16.0",
-			"snakemake-minimal>=7.0.0",
-			"numpy>=1.20.0",
-		],
 		classifiers=[
 			"Development Status :: 4 - Beta",
 			"Intended Audience :: Science/Research",
