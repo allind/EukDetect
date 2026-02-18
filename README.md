@@ -46,7 +46,7 @@
  
  **Download EukDetect database from Figshare**
  
- Download and unpack the EukDetect database (eukdetect2_database.tar.gz) from the [Figshare repository](https://doi.org/10.6084/m9.figshare.12670856.v8) #update link
+ Download and unpack the EukDetect database (eukdetect2_database.tar.gz) from the [Figshare repository](https://doi.org/10.6084/m9.figshare.31360168).
  
  The previous versions of the EukDetect database are [still available](https://doi.org/10.6084/m9.figshare.12670856.v4), but are not compatible with Eukdetect2. #update this
  
@@ -91,7 +91,7 @@
  
  There is currently no support for a mixture of paired and single end reads for a sample. 
  
-### Multiple Samples (Batch Mode)
+### Multiple Samples (Batch local mode)
  
  1. Create a tab-separated samples file (`samples.tsv`):
  
@@ -184,7 +184,7 @@
  
  **Examples:**
  
- ```bash
+ ```
 # Run only alignment
  eukdetect single -1 R1.fq.gz -2 R2.fq.gz -n sample -o out/ -d db/ --mode aln --cores 16
  
@@ -215,8 +215,6 @@
  └── sample1_filtered_hits_eukfrac.txt
  ```
  
-### Output Files
- 
  **`{sample}_filtered_hits_table.txt`** reports for each detected taxon:
  - Taxonomic name, rank, lineage, and NCBI taxonomy ID
  - Number of marker genes with aligned reads
@@ -230,11 +228,9 @@
  - Relative_abundance (EukFrac): relative abundance compared to other eukaryotes at all taxonomic levels
  - Total reads: number of reads aligning to markers at each taxonomic level
  
- **Important Notes:** 
- - The EukFrac (relative abundance) metric is relative only to other eukaryotes, not to bacteria or archaea. Always consider RPKS alongside EukFrac when interpreting results.
- 
 ##  Important Considerations
- 
+ **Eukfrac interpretation:** The EukFrac (relative abundance) metric is relative only to other eukaryotes, not to bacteria or archaea. Always consider RPKS alongside EukFrac when interpreting results.
+
  **Filtering threshholds:** By default, EukDetect removes taxa with fewer than 4 reads aligning to fewer than 2 marker genes. Unfiltered results are available in the `filtering/` directory.
  
  **Read length:** EukDetect supports reads over 75 base pairs long.
@@ -247,19 +243,6 @@
 
 **Comparing across samples:** RPKS cannot be directly compared between samples without first normalizing by library size.
   
-## Pipeline Overview
- 
- A schematic of the EukDetect pipeline is available in [eukdetect_pipeline_schematic.pdf](https://github.com/allind/EukDetect/blob/master/eukdetect_pipeline_schematic.pdf).
- 
- The pipeline consists of:
- 1. Alignment to marker gene database using bowtie2
- 2. Quality filtering (mapping quality, read length)
- 3. Removal of low-complexity and duplicate reads
- 4. Counting reads per marker gene
- 5. Filtering and taxonomic assignment
- 6. Abundance estimation
- 
-
 ## Normalizing RPKS Across Samples
 
 RPKS values from EukDetect are not normalized by total sequencing depth. This means RPKS values cannot be directly compared across samples with different library sizes. To enable cross-sample comparisons and to combine RPKS and eukfrac data across samples into one file, use the provided normalization script ```eukdetect/util/normalize_rpks.py```
@@ -273,7 +256,7 @@ The normalization script produces a combined table with additional columns:
 RPKSM values are only calculated for species-level taxa. Higher taxonomic levels show "NA" for RPKSM.
 
 **Usage:**
-```bash
+```
 python eukdetect/util/normalize_rpks.py \
   --eukfrac results/*_filtered_hits_eukfrac.txt \
   --library-sizes library_sizes.tsv \
@@ -320,7 +303,7 @@ done
  
  Lind, A.L., Pollard, K.S. Accurate and sensitive detection of microbial eukaryotes from whole metagenome shotgun sequencing. Microbiome 9, 58 (2021).
  
-## Taxonomy Database Version
+## Taxonomy Database Issues
  
  The EukDetect pipeline uses the ete3 package to interface with the NCBI taxonomy database. The database uses the NCBI taxonomy release from early 2026. The Figshare repository includes both the taxdump file and the ete3 sqlite database.
  
