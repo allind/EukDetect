@@ -1,0 +1,17 @@
+LICENSE
+MANIFEST.in
+README.md
+setup.py
+eukdetect/__init__.py
+eukdetect.egg-info/PKG-INFO
+eukdetect.egg-info/SOURCES.txt
+eukdetect.egg-info/dependency_links.txt
+eukdetect.egg-info/entry_points.txt
+eukdetect.egg-info/top_level.txt
+eukdetect/envs/eukdetect2_environment.yml
+eukdetect/rules/eukdetect.rules
+eukdetect/wrappers/__init__.py
+eukdetect/wrappers/main.py
+eukdetect/wrappers/runall.py
+tests/__init__.py
+tests/test_eukdetect.py
