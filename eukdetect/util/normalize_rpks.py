@@ -107,7 +107,7 @@ def parse_eukfrac_file(eukfrac_file, library_sizes):
 		sys.exit(1)
 	
 	total_reads = library_sizes[sample_name]
-	logger.info(f"Processing {sample_name}: {total_reads:,} total reads")
+	#logger.info(f"Processing {sample_name}: {total_reads:,} total reads")
 	
 	taxon_data = {}
 	
@@ -168,18 +168,17 @@ def parse_eukfrac_file(eukfrac_file, library_sizes):
 				rpks_str = parts[rpks_idx]
 				eukfrac_str = parts[rel_abund_idx]
 				
-				# Parse RPKS (NA for non-species)
-				if rpks_str == 'NA':
+				# Parse RPKS: NA for non-species ranks, numeric (including 0) for species
+				if rank != 'species':
 					rpks = 'NA'
 					rpksm = 'NA'
 				else:
 					try:
-						rpks = float(rpks_str)
-						# Calculate RPKSM only for species
-						rpksm = rpks / (total_reads / 1_000_000) if rpks > 0 else 0.0
+						rpks = float(rpks_str) if rpks_str != 'NA' else 0.0
+						rpksm = rpks / (total_reads / 1_000_000)
 					except ValueError:
-						rpks = 'NA'
-						rpksm = 'NA'
+						rpks = 0.0
+						rpksm = 0.0
 				
 				# Parse EukFrac
 				try:
@@ -277,8 +276,10 @@ def write_unified_table(all_lineages, lineage_info, sample_data, sample_order, o
 							f"{data['eukfrac']:.6f}"
 						])
 					else:
-						# Taxon not found in this sample - all zeros
-						row_parts.extend(['0.000000', '0.000000', '0.000000'])
+						# Taxon not found in this sample
+						is_species = lineage_info[lineage]['rank'] == 'species'
+						rpks_absent = '0.000000' if is_species else 'NA'
+						row_parts.extend([rpks_absent, rpks_absent, '0.000000'])
 				
 				f.write('\t'.join(row_parts) + '\n')
 		
