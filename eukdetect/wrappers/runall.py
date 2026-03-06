@@ -1,4 +1,3 @@
-
 #from ete3 import NCBITaxa
 #from Bio import SeqIO
 #from datetime import datetime
@@ -412,6 +411,10 @@ def execute(args):
 					f"Please check disk space and permissions."
 				)
 
+		#Warn if alignment files already exist when running in all or aln mode
+		if args.mode in ('all', 'aln'):
+			_warn_existing_alignments(config_dict)
+
 		#Execute snakemake
 		logger.info(f"Running EukDetect in {args.mode} mode")
 		
@@ -528,6 +531,27 @@ def _parse_samples(
 
 	return samples
 
+def _warn_existing_alignments(config_dict: dict):
+	output_dir = Path(config_dict["output_dir"])
+	samples = config_dict["samples"].keys()
+
+	existing = [
+		s for s in samples
+		if (output_dir / "aln" / f"{s}_aln_q10_lenfilter.sorted.bam").exists()
+	]
+
+	if existing:
+		logger.warning(
+			f"\n{'!'*60}\n"
+			f"WARNING: Alignment files already exist for {len(existing)}/{len(list(samples))} sample(s):\n"
+			+ "\n".join(f"  - {s}" for s in existing)
+			+ f"\n\nExisting alignments will NOT be re-run (Snakemake treats them as up-to-date)."
+			f"\nTo redo alignments, delete the BAM files first."
+			f"\nTo skip alignment entirely, use --mode analyze."
+			f"\n{'!'*60}\n"
+		)
+
+
 def _print_output_summary(config_dict: dict, mode: str):
 	output_dir = Path(config_dict["output_dir"])
 	samples = config_dict["samples"].keys()
@@ -554,6 +578,3 @@ def _print_output_summary(config_dict: dict, mode: str):
 		cmd_file = output_dir / "alignment_commands.txt"
 		logger.info(f"\nAlignment commands written to: {cmd_file}")
 	logger.info("\n" + "*"*60)
-
-
-
