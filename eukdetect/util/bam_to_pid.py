@@ -7,15 +7,13 @@ def main(argv):
 
 	#parse reference file..?
 	#parse samtools header
-	bam = AlignmentFile(sys.argv[1])
+	bam = AlignmentFile(argv[1])
 
-	observed = []
-	for read in bam.fetch():
-		if read.reference_name not in observed:
-			observed.append(read.reference_name)
+	observed = dict.fromkeys(read.reference_name for read in bam.fetch())
 
 	ref_seqs = {}
-	for seq in SeqIO.parse(sys.argv[2], 'fasta'):
+	for seq in SeqIO.parse(argv[2], 'fasta'):
+		# Look up time O(1) instead of O(n) with list
 		if seq.id in observed:
 			ref_seqs[seq.id] = str(seq.seq)
 
@@ -101,4 +99,4 @@ def main(argv):
 			+ str(pid))
 
 if __name__ == "__main__":
-  main(sys.argv)
+	main(sys.argv)

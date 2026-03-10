@@ -117,7 +117,7 @@ def check_fastq_files(config: dict) -> None:
 			f"Missing input fastq files:\n  " + "\n  ".join(missing)
 		)
 	
-	logger.debug(f"✓ All fastq files found for {len(samples)} sample(s)")
+	logger.debug(f"All fastq files found for {len(samples)} sample(s)")
 
 
 def check_readlengths(config: dict) -> None:
@@ -186,7 +186,7 @@ def check_alignment_outputs(config: dict, force: bool) -> None:
 	
 	existing = []
 	for sample in samples:
-		aln_file = output_dir / "aln" / f"{sample}aln_q10_lenfilter.sorted.bam"
+		aln_file = output_dir / "aln" / f"{sample}_aln_q10_lenfilter.sorted.bam"
 		if aln_file.exists():
 			existing.append(str(aln_file))
 	

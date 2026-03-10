@@ -18,7 +18,7 @@ import re
 
 from ..util.execute import SnakemakeExecutor
 from ..util.build_config import ConfigBuilder
-from ..util.validate import validate_inputs, check_database
+from ..util.validate import validate_inputs
 
 logger = logging.getLogger(__name__)
 
@@ -254,7 +254,7 @@ def parseargs_batch(parser):
 		type=validate_cores,
 		default=1,
 		metavar="N",
-		help="Number of samples to run in parallel on this machine (default: 1).!"
+		help="Number of samples to run in parallel on this machine (default: 1)."
 	)
 	
 	execs.add_argument(
@@ -369,9 +369,6 @@ def execute(args):
 			logger.info("Validating input")
 			validate_inputs(config_dict, mode=args.mode, force=args.force)
 
-			logger.info("Validating database files")
-			check_database(config_dict)
-
 			if hasattr(args, 'configfile_out') and args.configfile_out:
 				config_path = Path(args.configfile_out)
 			else:
@@ -381,7 +378,7 @@ def execute(args):
 				config_dir.mkdir(parents=True, exist_ok=True)
 				
 				if args.run_type == 'single':
-	# Single mode: use sample name + run number
+					# Single mode: use sample name + run number
 					sample_names = list(config_dict['samples'].keys())
 					if sample_names:
 						sample_name = sample_names[0]
@@ -446,7 +443,7 @@ def execute(args):
 				logger.info("DRY RUN COMPLETED")
 				logger.info("*"*70)
 				if args.run_type == 'batch':
-					logger.info("Dry run complete. To execute, re-run adnd remove --dry-run:")
+					logger.info("Dry run complete. To execute, re-run and remove --dry-run:")
 					logger.info(f"  eukdetect batch --samples {args.samples} -o {args.output} -d {database} --cores {args.cores}")
 				logger.info("*"*70 + "\n")
 			else:
