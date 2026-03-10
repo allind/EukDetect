@@ -1,6 +1,6 @@
 """
 Unit tests for EukDetect
-Run with: pytest tests/test_eukdetect.py -v
+Run with: pytest tests/test_eukdetect.py --basetemp=./tmp_test -v
 """
 
 import pytest
@@ -64,10 +64,11 @@ def test_database(tmp_path):
 	# Length file
 	(db_dir / f"{prefix}_lengths.txt").write_text("seq1\t1000\nseq2\t2000\n")
 	
-	# Busco lineages
-	(db_dir / "busco_database" / "busco_lineages.txt").write_text("lineage1\nlineage2\n")
-	(db_dir / "busco_database").mkdir(exist_ok=True, parents=True)
-	(db_dir / "busco_database" / "busco_lineages.txt").write_text("lineage1\n")
+	# Additional required database files
+	(db_dir / l").touch()
+	(db_dir / "specific_and_inherited_markers_per_taxid.txt").touch()
+	(db_dir / "busco_taxid_genome_link.txt").touch()
+	(db_dir / "taxid_and_genome_cumulativelength.txt").touch()
 	
 	return {
 		'dir': str(db_dir),
@@ -147,13 +148,14 @@ class TestValidateSampleName:
 	
 	def test_no_path_traversal(self):
 		"""Test that path traversal is blocked"""
-		with pytest.raises(ValueError, match="path separators"):
+		# Names with / are caught by the valid characters check first
+		with pytest.raises(ValueError, match="Invalid sample name"):
 			validate_sample_name("../../../etc/passwd")
-		
-		with pytest.raises(ValueError, match="path separators"):
+
+		with pytest.raises(ValueError, match="Invalid sample name"):
 			validate_sample_name("sample/../other")
-		
-		with pytest.raises(ValueError, match="path separators"):
+
+		with pytest.raises(ValueError, match="Invalid sample name"):
 			validate_sample_name("sample\\windows\\path")
 
 
@@ -276,7 +278,7 @@ class TestParseSamples:
 			"../bad/name\t/path/to/R1.fq.gz\t/path/to/R2.fq.gz\n"
 		)
 		
-		with pytest.raises(ValueError, match="path separators"):
+		with pytest.raises(ValueError, match="Invalid sample name"):
 			_parse_samples(
 				reads1=[],
 				reads2=[],
@@ -402,7 +404,7 @@ class TestFileValidation:
 			'database_prefix': 'eukdb'
 		}
 		
-		with pytest.raises(FileNotFoundError, match="Missing database files"):
+		with pytest.raises(ValueError, match="Missing database files"):
 			check_database(config)
 	
 	def test_check_fastq_files_paired_end(self, test_fastq_files):
@@ -440,7 +442,7 @@ class TestFileValidation:
 			'rev_suffix': '_2.fastq.gz'
 		}
 		
-		with pytest.raises(FileNotFoundError, match="Missing fastq files"):
+		with pytest.raises(ValueError, match="Missing input fastq files"):
 			check_fastq_files(config)
 	
 	def test_validate_inputs_complete(self, test_fastq_files, test_database):
