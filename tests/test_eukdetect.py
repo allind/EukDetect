@@ -65,7 +65,7 @@ def test_database(tmp_path):
 	(db_dir / f"{prefix}_lengths.txt").write_text("seq1\t1000\nseq2\t2000\n")
 	
 	# Additional required database files
-	(db_dir / l").touch()
+	(db_dir / "taxa.sqlite.traverse.pkl").touch()
 	(db_dir / "specific_and_inherited_markers_per_taxid.txt").touch()
 	(db_dir / "busco_taxid_genome_link.txt").touch()
 	(db_dir / "taxid_and_genome_cumulativelength.txt").touch()
