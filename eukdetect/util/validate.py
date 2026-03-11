@@ -139,7 +139,11 @@ def check_readlengths(config: dict) -> None:
 		
 		for fastq_file in files:
 			actual_readlen = _get_readlen(fastq_file)
-			
+
+			# 0 means the file couldn't be read; _get_readlen already logged a warning
+			if actual_readlen == 0:
+				continue
+
 			if abs(actual_readlen - expected_readlen) > 10:
 				warnings.append(
 					f"{fastq_file.name}: actual={actual_readlen} bp, expected={expected_readlen} bp"

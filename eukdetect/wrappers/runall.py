@@ -1,17 +1,11 @@
-#from ete3 import NCBITaxa
-#from Bio import SeqIO
-#from datetime import datetime
 from pathlib import Path
 from typing import Optional, List, Tuple
 
 import logging
-import shlex
-#import gzip
 import os
 import sys
 import yaml
 import argparse
-#import subprocess
 import textwrap
 import csv
 import re

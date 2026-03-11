@@ -52,8 +52,6 @@ class ConfigBuilder:
 		first_sample = list(self.samples.values())[0]
 		fastq_path = first_sample["reads1"]
 		logger.debug(f"Detecting read length from {fastq_path}")
-
-		logger.debug(f"Detecting read length from {fastq_path}")
 		
 		counter = 0
 		bases = 0
@@ -76,11 +74,10 @@ class ConfigBuilder:
 			
 			if counter == 0:
 				raise ValueError(f"Could not read sequences from {fastq_path}")
-			
-			avg_readlen = int(bases / counter)
-			return avg_readlen
-		
-		except Exception as e:
+
+			return int(bases / counter)
+
+		except (OSError, IOError) as e:
 			logger.warning(f"Could not auto-detect read length: {e}")
 			logger.warning("Defaulting to 150 bp. Use --readlen to specify manually.")
 			return 150

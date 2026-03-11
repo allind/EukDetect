@@ -73,7 +73,7 @@ rule runaln:
 		r1 = lambda wildcards: config["fq_dir"] + "/" + wildcards.sample + (config["fwd_suffix"] if config["paired_end"] else config["se_suffix"]),
 		r2 = lambda wildcards: config["fq_dir"] + "/" + wildcards.sample + config["rev_suffix"] if config["paired_end"] else []
 	output:
-		bam = ancient(config["output_dir"] + "/aln/{sample}_aln_q10_lenfilter.sorted.bam")
+		bam = config["output_dir"] + "/aln/{sample}_aln_q10_lenfilter.sorted.bam"
 	threads: config.get("bowtie2_cores", 1)
 	run:
 		import os
@@ -123,7 +123,6 @@ rule remove_low_complexity:
 		temp(config["output_dir"] + "/aln/{sample}_aln_q10_lenfilter_complexity.sorted.bam")
 	run:
 		import os
-		low_complex = open(input.drop_complex).readlines()
 		if os.path.getsize(input.drop_complex) > 0:
 			shell("samtools view -h {input.inbam} | grep -v -f {input.drop_complex} | samtools view -bS - > {output[0]}")
 		else:
