@@ -301,7 +301,7 @@ def main(argv):
 					pri_overall_pid = genomes_dict[pri_genome]['overall_pid']
 					overlap = [b for b in sec_buscos if b in pri_buscos]
 					
-					#CCompare overall PIDs regardless of overlap. If secondary has worse overall PID, it should be reassigned
+					#Compare overall PIDs regardless of overlap. If secondary has worse overall PID, it should be reassigned
 					
 					if len(overlap) == 0:
 						#No shared BUSCOs

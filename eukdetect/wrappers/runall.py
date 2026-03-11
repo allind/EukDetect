@@ -306,6 +306,9 @@ def execute(args):
 			
 			#Update bowtie2_cores in config
 			config_dict["bowtie2_cores"] = bowtie2_cores
+
+			logger.info("Validating input")
+			validate_inputs(config_dict, mode=args.mode, force=args.force)
 		else:
 			logger.info("Building config from command-line arguments")
 			
@@ -463,7 +466,7 @@ def execute(args):
 
 def _load_config_file(config_path: str) -> dict:
 	with open(config_path) as f:
-		config = yaml.load(f, Loader=yaml.FullLoader)
+		config = yaml.safe_load(f)
 	return config
 
 def _parse_samples(

@@ -3,6 +3,7 @@
 from pysam import AlignmentFile
 from Bio import SeqIO
 import sys
+
 def main(argv):
 
 	#parse reference file..?

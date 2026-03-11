@@ -174,7 +174,7 @@ def _get_readlen(fastq_path: Path, max_reads: int = 10000) -> int:
 				bases += len(record.seq)
 		
 		return int(bases / counter) if counter > 0 else 0
-	
+
 	except Exception as e:
 		logger.warning(f"Could not read {fastq_path}: {e}")
 		return 0

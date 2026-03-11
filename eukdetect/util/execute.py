@@ -106,7 +106,7 @@ class SnakemakeExecutor:
 			snakefile = pkg_path / "rules" / "eukdetect.rules"
 			if snakefile.exists():
 				return snakefile
-		except:
+		except Exception:
 			pass
 
 
