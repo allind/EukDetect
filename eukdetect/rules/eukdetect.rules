@@ -85,6 +85,7 @@ rule runaln:
 			minreadlen = 60
 		if config["paired_end"]:
 			shell("""
+				set -euo pipefail
 				bowtie2 -p {cores} --quiet --omit-sec-seq --no-discordant --no-unal -x {db} -1 {input.r1} -2 {input.r2} |
 				perl -lane '$l = 0; $F[5] =~ s/(\\d+)[MX=DN]/$l+=$1/eg; print if $l > {minreadlen} or /^@/' |
 				samtools view -q 30 -bS - |
@@ -92,10 +93,11 @@ rule runaln:
 			""")
 		else:
 			shell("""
-				bowtie2 -p {cores} --quiet --omit-sec-seq --no-discordant --no-unal -x {db} -U {input.r1} | 
-				perl -lane '$l = 0; $F[5] =~ s/(\\d+)[MX=DN]/$l+=$1/eg; print if $l > {minreadlen} or /^@/' | 
-				samtools view -q 30 -bS - | 
-				samtools sort -o {output.bam} - 
+				set -euo pipefail
+				bowtie2 -p {cores} --quiet --omit-sec-seq --no-discordant --no-unal -x {db} -U {input.r1} |
+				perl -lane '$l = 0; $F[5] =~ s/(\\d+)[MX=DN]/$l+=$1/eg; print if $l > {minreadlen} or /^@/' |
+				samtools view -q 30 -bS - |
+				samtools sort -o {output.bam} -
 			""")
 
 
@@ -124,7 +126,7 @@ rule remove_low_complexity:
 	run:
 		import os
 		if os.path.getsize(input.drop_complex) > 0:
-			shell("samtools view -h {input.inbam} | grep -v -f {input.drop_complex} | samtools view -bS - > {output[0]}")
+			shell("samtools view -h {input.inbam} | grep -F -v -f {input.drop_complex} | samtools view -bS - > {output[0]}")
 		else:
 			shell("samtools view -h {input.inbam} | samtools view -bS - > {output[0]}")
 
