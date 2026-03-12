@@ -12,7 +12,10 @@ setuptools.setup(
 		long_description_content_type="text/markdown",
 		license="MIT",
 		url="https://github.com/allind/EukDetect",
-		entry_points={"console_scripts": ["eukdetect = eukdetect.wrappers.main:main"]},
+		entry_points={"console_scripts": [
+		"eukdetect = eukdetect.wrappers.main:main",
+		"eukdetect-normalize = eukdetect.util.normalize_rpks:main",
+	]},
 		packages=setuptools.find_packages(),
 		python_requires=">=3.8",
 		classifiers=[

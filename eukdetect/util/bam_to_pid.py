@@ -24,7 +24,7 @@ def main(argv):
 		contig_counts = bam.count(o, start = 0, end = len(ref_seqs[o]))
 
 		counts = bam.count_coverage(o, start = 0, end = len(ref_seqs[o]))
-		pos_ids = []
+		#pos_ids = []
 		trues = 0
 		falses = 0
 		total = 0

@@ -251,5 +251,5 @@ def check_alignment_inputs(config: dict) -> None:
 		raise ValueError(
 			f"Alignment files required for filter mode not found:\n  " +
 			"\n  ".join(missing) +
-			"\n\nRun alignment first with: eukdetect run --mode aln"
+			"\n\nRun alignment first with: eukdetect single --mode aln"
 		)
