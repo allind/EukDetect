@@ -73,10 +73,14 @@ class ConfigBuilder:
 					bases += len(record.seq)
 			
 			if counter == 0:
-				raise ValueError(f"Could not read sequences from {fastq_path}")
+				raise ValueError("Empty FASTQ")
 
 			return int(bases / counter)
 
+		except ValueError:
+			logger.error(f"Input FASTQ appears to be empty: {fastq_path}")
+			logger.error("Specify read length manually with --readlen to bypass auto-detection.")
+			raise
 		except (OSError, IOError) as e:
 			logger.warning(f"Could not auto-detect read length: {e}")
 			logger.warning("Defaulting to 150 bp. Use --readlen to specify manually.")
