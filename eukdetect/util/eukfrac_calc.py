@@ -17,6 +17,15 @@ logger = logging.getLogger(__name__)
 
 
 def main(argv):
+	# Pipeline phases:
+	# 1. Load inputs: NCBI taxonomy DB, gene lengths, busco-taxid-genome mappings, read counts
+	# 2. Genome-level disambiguation: for species with multiple reference genomes, identify the
+	#    primary genome (most reads/bases) and reassign reads from secondary genomes to it
+	# 3. Genus-level disambiguation: within each genus, identify secondary species whose hits
+	#    are better explained by the primary species, and reassign their reads
+	# 4. Filter taxa (>=2 markers AND >=4 reads), compute RPKS-normalized relative abundance,
+	#    and write output tables (alltab, primarytab, eukfrac)
+
 	parser = argparse.ArgumentParser(
 		description=textwrap.dedent("""\
 			Summarize and filter alignments by taxid with multi-genome support.
@@ -132,7 +141,7 @@ def main(argv):
 				try:
 					count = int(parts[1])
 					correct_bases = int(parts[2])
-					incorrect_bases = int(parts[3])
+					#incorrect_bases = int(parts[3])
 					total_bases = int(parts[4])
 					subjlen = int(parts[5])
 					coverage = float(parts[6])
@@ -165,7 +174,7 @@ def main(argv):
 				except Exception as e:
 					logger.warning(f"Could not get lineage for taxid {taxid}: {e}")
 					continue
-				
+
 				seq_data = [seq, count, correct_bases, total_bases, subjlen, coverage, pid, busco]
 				taxid_counts[taxid].append(seq_data)
 				
@@ -331,6 +340,8 @@ def main(argv):
 									if sec_pids[0] <= pri_pids[0]:
 										buscos_with_worse_or_equal_pid.append(busco)
 							
+							# Thresholding: secondary is reassigned if enough overlapping BUSCOs
+							# have worse/equal PID vs primary. Strict threshold for sparse markers (<5).
 							#Threshholding
 							if len(sec_buscos) < 5:
 								#Few markers: strict threshold
@@ -610,6 +621,7 @@ def main(argv):
 								elif len(ppid) == 0:
 									a_above.append(b)
 							
+							# Thresholding: mirror of genome-level logic — strict for sparse markers
 							if len(a_buscos) < 5:
 								if len(a_above) < len(a_buscos):
 									is_secondary = True
@@ -922,6 +934,8 @@ def main(argv):
 				if child.name in node_marker_sequences:
 					node_marker_sequences[node.name].extend(node_marker_sequences[child.name])
 	
+	# Remove taxonomic levels absent from some lineages to avoid
+	# reporting inconsistent rank coverage across taxa (e.g. no "family" for some fungi)
 	#Remove incomplete levels
 	levels_to_remove = []
 	for tax in filter_passing_taxids:
@@ -955,6 +969,7 @@ def main(argv):
 			original_marker_length = node_original_marker_length.get(tax, 0)
 			
 			if original_marker_length > 0:
+				# RPKS = reads per kilobase of marker sequence (length-normalized abundance)
 				rpks = total_reads / (original_marker_length / 1000)
 			else:
 				rpks = 0.0
