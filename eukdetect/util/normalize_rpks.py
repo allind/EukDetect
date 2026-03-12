@@ -297,7 +297,7 @@ def main():
 		formatter_class=argparse.RawDescriptionHelpFormatter,
 		epilog="""
 Examples:
-  python create_unified_table.py \\
+  eukdetect-normalize \\
     --eukfrac results/*_filtered_hits_eukfrac.txt \\
     --library-sizes library_sizes.tsv \\
     --output unified_abundance.tsv
