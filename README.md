@@ -241,11 +241,13 @@
  
  **File naming:** For batch mode, all samples must use consistent file extensions and naming patterns.
 
+ **Input file directory:** All input FASTQ files for a single batch run must reside in the same directory. EukDetect infers one shared `fq_dir` from the first sample and constructs all other file paths as `{fq_dir}/{sample_name}{suffix}`. Samples stored in different directories cannot be processed in a single batch run — symlink them into a common directory first, or run them as separate `eukdetect single` invocations.
+
 **Comparing across samples:** RPKS cannot be directly compared between samples without first normalizing by library size.
   
 ## Normalizing RPKS Across Samples
 
-RPKS values from EukDetect are not normalized by total sequencing depth. This means RPKS values cannot be directly compared across samples with different library sizes. To enable cross-sample comparisons and to combine RPKS and eukfrac data across samples into one file, use the provided normalization script ```eukdetect/util/normalize_rpks.py```
+RPKS values from EukDetect are not normalized by total sequencing depth. This means RPKS values cannot be directly compared across samples with different library sizes. To enable cross-sample comparisons and to combine RPKS and eukfrac data across samples into one file, use the provided `eukdetect-normalize` command
 
 The normalization script produces a combined table with additional columns:
 
@@ -257,7 +259,7 @@ RPKSM values are only calculated for species-level taxa. Higher taxonomic levels
 
 **Usage:**
 ```
-python eukdetect/util/normalize_rpks.py \
+eukdetect-normalize \
   --eukfrac results/*_filtered_hits_eukfrac.txt \
   --library-sizes library_sizes.tsv \
   --output all_samples_normalized.tsv

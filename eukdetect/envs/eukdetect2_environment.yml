@@ -111,7 +111,7 @@ dependencies:
   - libogg=1.3.5=hd0c01bc_1
   - libopenblas=0.3.30=pthreads_h94d23a6_4
   - libopengl=1.7.0=ha4b6fd6_2
-  - libopus=1.6=h0fd0de7_0
+  - libopus=1.6
   - libpciaccess=0.18=hb9d3cd8_0
   - libpng=1.6.53=h421ea60_0
   - libpq=18.1=h5c52fec_2
@@ -216,9 +216,9 @@ dependencies:
   - xorg-xextproto=7.3.0=hb9d3cd8_1004
   - yaml=0.2.5=h280c20c_3
   - yte=1.9.4=pyhd8ed1ab_0
+  - unzip=6.0=hb03c661_4
   - zstd=1.5.7=hb78ec9c_6
   - pytest=8.3.5=pyhd8ed1ab_0
   - pytest-cov=6.0.0=pyhd8ed1ab_1
   - pip:
       - legacy-cgi==2.6.4
-prefix: /storage/project/r-alind6-0/alind6/miniforge3/envs/eukdetect

@@ -117,7 +117,7 @@ def check_fastq_files(config: dict) -> None:
 			f"Missing input fastq files:\n  " + "\n  ".join(missing)
 		)
 	
-	logger.debug(f"✓ All fastq files found for {len(samples)} sample(s)")
+	logger.debug(f"All fastq files found for {len(samples)} sample(s)")
 
 
 def check_readlengths(config: dict) -> None:
@@ -139,7 +139,11 @@ def check_readlengths(config: dict) -> None:
 		
 		for fastq_file in files:
 			actual_readlen = _get_readlen(fastq_file)
-			
+
+			# 0 means the file couldn't be read; _get_readlen already logged a warning
+			if actual_readlen == 0:
+				continue
+
 			if abs(actual_readlen - expected_readlen) > 10:
 				warnings.append(
 					f"{fastq_file.name}: actual={actual_readlen} bp, expected={expected_readlen} bp"
@@ -174,7 +178,7 @@ def _get_readlen(fastq_path: Path, max_reads: int = 10000) -> int:
 				bases += len(record.seq)
 		
 		return int(bases / counter) if counter > 0 else 0
-	
+
 	except Exception as e:
 		logger.warning(f"Could not read {fastq_path}: {e}")
 		return 0
@@ -186,7 +190,7 @@ def check_alignment_outputs(config: dict, force: bool) -> None:
 	
 	existing = []
 	for sample in samples:
-		aln_file = output_dir / "aln" / f"{sample}aln_q10_lenfilter.sorted.bam"
+		aln_file = output_dir / "aln" / f"{sample}_aln_q10_lenfilter.sorted.bam"
 		if aln_file.exists():
 			existing.append(str(aln_file))
 	
@@ -247,5 +251,5 @@ def check_alignment_inputs(config: dict) -> None:
 		raise ValueError(
 			f"Alignment files required for filter mode not found:\n  " +
 			"\n  ".join(missing) +
-			"\n\nRun alignment first with: eukdetect run --mode aln"
+			"\n\nRun alignment first with: eukdetect single --mode aln"
 		)

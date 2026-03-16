@@ -73,19 +73,14 @@ def main():
 		sys.exit(0)
 
 	#execute commands
-	try:
-		if args.command == "single":
-			args.run_type = "single"  #Set for compatibility with execute()
-			runall.execute(args)
-		elif args.command == "batch":
-			args.run_type = "batch"  #Set for compatibility with execute()
-			runall.execute(args)
-		else:
-			parser.print_help()
-			sys.exit(1)
-
-	except Exception as e:
-		logger.error(f"Error: {e}")
+	if args.command == "single":
+		args.run_type = "single"  #Set for compatibility with execute()
+		runall.execute(args)
+	elif args.command == "batch":
+		args.run_type = "batch"  #Set for compatibility with execute()
+		runall.execute(args)
+	else:
+		parser.print_help()
 		sys.exit(1)
 
 if __name__ == "__main__":

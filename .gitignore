@@ -1,0 +1,7 @@
+**/__pycache__/*
+**/*.pyc
+tmp_test/*
+**/*.egg-info/
+.pytest_cache/
+eukdb/
+.snakemake/

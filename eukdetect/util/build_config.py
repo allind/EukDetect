@@ -52,8 +52,6 @@ class ConfigBuilder:
 		first_sample = list(self.samples.values())[0]
 		fastq_path = first_sample["reads1"]
 		logger.debug(f"Detecting read length from {fastq_path}")
-
-		logger.debug(f"Detecting read length from {fastq_path}")
 		
 		counter = 0
 		bases = 0
@@ -75,12 +73,15 @@ class ConfigBuilder:
 					bases += len(record.seq)
 			
 			if counter == 0:
-				raise ValueError(f"Could not read sequences from {fastq_path}")
-			
-			avg_readlen = int(bases / counter)
-			return avg_readlen
-		
-		except Exception as e:
+				raise ValueError("Empty FASTQ")
+
+			return int(bases / counter)
+
+		except ValueError:
+			logger.error(f"Input FASTQ appears to be empty: {fastq_path}")
+			logger.error("Specify read length manually with --readlen to bypass auto-detection.")
+			raise
+		except (OSError, IOError) as e:
 			logger.warning(f"Could not auto-detect read length: {e}")
 			logger.warning("Defaulting to 150 bp. Use --readlen to specify manually.")
 			return 150
@@ -97,14 +98,14 @@ class ConfigBuilder:
 			fastq2 = Path(first_sample["reads2"]).name
 			
 			# Remove sample name to get suffix
-			fwd_suffix = fastq1.replace(first_name, "")
-			rev_suffix = fastq2.replace(first_name, "")
+			fwd_suffix = fastq1.replace(first_name, "", 1)
+			rev_suffix = fastq2.replace(first_name, "", 1)
 			se_suffix = ".fastq.gz"  # default
 			
 			logger.debug(f"Detected paired-end suffixes: {fwd_suffix}, {rev_suffix}")
 		else:
 			# Single-end
-			se_suffix = fastq1.replace(first_name, "")
+			se_suffix = fastq1.replace(first_name, "", 1)
 			fwd_suffix = "_1.fastq.gz"  # defaults
 			rev_suffix = "_2.fastq.gz"
 			
@@ -125,7 +126,7 @@ class ConfigBuilder:
 			import eukdetect
 			pkg_path = Path(eukdetect.__file__).parent
 			return str(pkg_path.absolute())
-		except:
+		except Exception:
 			# Fallback for development
 			logger.warning("Could not determine package installation path")
 			return str(Path(__file__).parent.parent.absolute())
