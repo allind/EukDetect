@@ -1,3 +1,11 @@
+#package-level script locations are determined at load
+import os as _os
+_EUKDETECT_DIR = config["eukdetect_dir"]
+_BAM_TO_PID    = _os.path.join(_EUKDETECT_DIR, "util", "bam_to_pid.py")
+_EUKFRAC_CALC  = _os.path.join(_EUKDETECT_DIR, "util", "eukfrac_calc.py")
+
+
+
 #targets
 
 rule all:
@@ -49,57 +57,67 @@ rule alncmd:
 					r1 = os.path.join(fq_dir, f"{sample}{config['fwd_suffix']}")
 					r2 = os.path.join(fq_dir, f"{sample}{config['rev_suffix']}")
 					bam = os.path.join(output_dir, f"aln/{sample}_aln_q10_lenfilter.sorted.bam")
-					cmd = f"""
-					bowtie2 -p {cores} --quiet --omit-sec-seq --no-discordant --no-unal -x {db} -1 {r1} -2 {r2} |
-					perl -lane "$l = 0; $F[5] =~ s/(\\d+)[MX=DN]/$l+=$1/eg; print if $l > {minreadlen} or /^@/" |
-					samtools view -q 30 -bS - |
-					samtools sort -o {bam} -
-					"""
+					cmd = (
+						f"bowtie2 -p {cores} --end-to-end --very-sensitive -X 1000.0"
+						f" --quiet --omit-sec-seq --no-discordant --no-unal"
+						f" -x {db} -1 {r1} -2 {r2} |"
+						f" perl -lane '$l = 0; $F[5] =~ s/(\\d+)[MX=DN]/$l+=$1/eg;"
+						f" print if $l > {minreadlen} or /^@/' |"
+						f" samtools view -q 10 -bS - |"
+						f" samtools sort -@ {cores} -o {bam} -"
+					)
 				else:
 					fq = os.path.join(fq_dir, f"{sample}{config['se_suffix']}")
 					bam = os.path.join(output_dir, f"aln/{sample}_aln_q10_lenfilter.sorted.bam")
-					cmd = f"""
-					bowtie2 -p {cores} --quiet --omit-sec-seq --no-discordant --no-unal -x {db} -U {fq} | 
-					perl -lane "$l = 0; $F[5] =~ s/(\\d+)[MX=DN]/$l+=$1/eg; print if $l > {minreadlen} or /^@/" |
-					samtools view -q 30 -bS - | 
-					samtools sort -o {bam} - 
-					"""
+					cmd = (
+						f"bowtie2 -p {cores} --end-to-end --very-sensitive"
+						f" --quiet --omit-sec-seq --no-discordant --no-unal"
+						f" -x {db} -U {fq} |"
+						f" perl -lane '$l = 0; $F[5] =~ s/(\\d+)[MX=DN]/$l+=$1/eg;"
+						f" print if $l > {minreadlen} or /^@/' |"
+						f" samtools view -q 10 -bS - |"
+						f" samtools sort -@ {cores} -o {bam} -"
+					)
 				out.write(cmd + "\n")
 
 
 
 rule runaln:
 	input:
-		r1 = lambda wildcards: config["fq_dir"] + "/" + wildcards.sample + (config["fwd_suffix"] if config["paired_end"] else config["se_suffix"]),
-		r2 = lambda wildcards: config["fq_dir"] + "/" + wildcards.sample + config["rev_suffix"] if config["paired_end"] else []
+		r1 = lambda wildcards: os.path.join(
+			config["fq_dir"],
+			wildcards.sample + (config["fwd_suffix"] if config["paired_end"] else config["se_suffix"])
+		),
+		r2 = lambda wildcards: (
+			os.path.join(config["fq_dir"], wildcards.sample + config["rev_suffix"])
+			if config["paired_end"] else []
+		)
 	output:
 		bam = config["output_dir"] + "/aln/{sample}_aln_q10_lenfilter.sorted.bam"
+	params:
+		db = os.path.join(config["database_dir"], config["database_prefix"]),
+		minreadlen = max(60, int(round(config["readlen"] * 0.8))),
+		paired_end = config["paired_end"]
 	threads: config.get("bowtie2_cores", 1)
-	run:
-		import os
-		db = os.path.join(config["database_dir"], config["database_prefix"])
-		readlen=config["readlen"]
-		cores = threads  # Use threads from Snakemake
-		minreadlen = round(readlen * 0.8, 0)
-		if minreadlen < 60:
-			minreadlen = 60
-		if config["paired_end"]:
-			shell("""
-				set -euo pipefail
-				bowtie2 -p {cores} --quiet --omit-sec-seq --no-discordant --no-unal -x {db} -1 {input.r1} -2 {input.r2} |
-				perl -lane '$l = 0; $F[5] =~ s/(\\d+)[MX=DN]/$l+=$1/eg; print if $l > {minreadlen} or /^@/' |
-				samtools view -q 30 -bS - |
-				samtools sort -o {output.bam} -
-			""")
-		else:
-			shell("""
-				set -euo pipefail
-				bowtie2 -p {cores} --quiet --omit-sec-seq --no-discordant --no-unal -x {db} -U {input.r1} |
-				perl -lane '$l = 0; $F[5] =~ s/(\\d+)[MX=DN]/$l+=$1/eg; print if $l > {minreadlen} or /^@/' |
-				samtools view -q 30 -bS - |
-				samtools sort -o {output.bam} -
-			""")
-
+	shell:
+		"""
+		set -euo pipefail
+		if [ "{params.paired_end}" = "True" ]; then
+			bowtie2 -p {threads} --end-to-end --very-sensitive -X 1000.0 \\
+				--quiet --omit-sec-seq --no-discordant --no-unal \\
+				-x {params.db} -1 {input.r1} -2 {input.r2} |
+			perl -lane '$l = 0; $F[5] =~ s/(\\d+)[MX=DN]/$l+=$1/eg; print if $l > {params.minreadlen} or /^@/' |
+			samtools view -q 10 -bS - |
+			samtools sort -@ {threads} -o {output.bam} -
+		else
+			bowtie2 -p {threads} --end-to-end --very-sensitive \\
+				--quiet --omit-sec-seq --no-discordant --no-unal \\
+				-x {params.db} -U {input.r1} |
+			perl -lane '$l = 0; $F[5] =~ s/(\\d+)[MX=DN]/$l+=$1/eg; print if $l > {params.minreadlen} or /^@/' |
+			samtools view -q 10 -bS - |
+			samtools sort -@ {threads} -o {output.bam} -
+		fi
+		"""
 
 rule bam2fastq:
 	input:
@@ -128,7 +146,7 @@ rule remove_low_complexity:
 		if os.path.getsize(input.drop_complex) > 0:
 			shell("samtools view -h {input.inbam} | grep -F -v -f {input.drop_complex} | samtools view -bS - > {output[0]}")
 		else:
-			shell("samtools view -h {input.inbam} | samtools view -bS - > {output[0]}")
+			shell("samtools view -b {input.inbam} > {output[0]}")
 
 
 rule fixmate:
@@ -173,25 +191,37 @@ rule countreads:
 	input:
 		bam = config["output_dir"] + "/filtering/{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam",
 		bai = config["output_dir"] + "/filtering/{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam.bai",
-		countscript = config["eukdetect_dir"] + "/util/bam_to_pid.py",
 		ref = config["database_dir"] + "/" + config["database_prefix"] + ".fasta"
 	output:
 		counts = config["output_dir"] + "/filtering/{sample}_read_counts_and_mismatches.txt"
+	params:
+		script = _BAM_TO_PID
 	shell:
-		"python {input.countscript} {input.bam} {input.ref} > {output.counts}"
-
+		"python {params.script} {input.bam} {input.ref} > {output.counts}"
+		
 rule taxonomize:
 	input:
-		counts = config["output_dir"] + "/filtering/{sample}_read_counts_and_mismatches.txt",
-		script = config["eukdetect_dir"] + "/util/eukfrac_calc.py",
-		taxid_link = config["database_dir"] + "/busco_taxid_genome_link.txt",
+		counts            = config["output_dir"] + "/filtering/{sample}_read_counts_and_mismatches.txt",
+		taxid_link        = config["database_dir"] + "/busco_taxid_genome_link.txt",
 		inherited_markers = config["database_dir"] + "/specific_and_inherited_markers_per_taxid.txt",
-		taxdb = config["database_dir"] + "/taxa.sqlite",
-		genelens = config["database_dir"] + "/taxid_and_genome_cumulativelength.txt"
+		taxdb             = config["database_dir"] + "/taxa.sqlite",
+		genelens          = config["database_dir"] + "/taxid_and_genome_cumulativelength.txt"
 	output:
-		allhits = config["output_dir"] + "/filtering/{sample}_all_hits_table.txt",
-		primary_hits = config["output_dir"] + "/{sample}_filtered_hits_table.txt",
+		allhits       = config["output_dir"] + "/filtering/{sample}_all_hits_table.txt",
+		primary_hits  = config["output_dir"] + "/{sample}_filtered_hits_table.txt",
 		primary_eukfrac = config["output_dir"] + "/{sample}_filtered_hits_eukfrac.txt"
+	params:
+		script = _EUKFRAC_CALC
 	shell:
-		"python {input.script} --dbfile {input.taxdb} --taxid_link {input.taxid_link} --inherited_markers {input.inherited_markers} --taxid_genelens {input.genelens} --readcounts {input.counts} --primarytab {output.primary_hits} --eukfrac {output.primary_eukfrac} --alltab {output.allhits}"
+		"""
+		python {params.script} \\
+			--dbfile            {input.taxdb} \\
+			--taxid_link        {input.taxid_link} \\
+			--inherited_markers {input.inherited_markers} \\
+			--taxid_genelens    {input.genelens} \\
+			--readcounts        {input.counts} \\
+			--primarytab        {output.primary_hits} \\
+			--eukfrac           {output.primary_eukfrac} \\
+			--alltab            {output.allhits}
+		"""
 

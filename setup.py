@@ -1,8 +1,8 @@
 import setuptools
-
+ 
 with open("README.md", "r") as fh:
 	long_description = fh.read()
-
+ 
 setuptools.setup(
 		name="eukdetect",
 		version="2.0.0",
@@ -17,6 +17,11 @@ setuptools.setup(
 		"eukdetect-normalize = eukdetect.util.normalize_rpks:main",
 	]},
 		packages=setuptools.find_packages(),
+		package_data={
+			"eukdetect.rules": ["*.rules", "*.yaml"],
+			"eukdetect.envs":  ["*.yml"],
+		},
+		include_package_data=True,
 		python_requires=">=3.8",
 		classifiers=[
 			"Development Status :: 4 - Beta",

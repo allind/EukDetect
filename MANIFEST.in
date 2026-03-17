@@ -1,6 +1,7 @@
 include LICENSE
 include README.md
-recursive-include eukdetect/rules *.rules
+recursive-include eukdetect/rules *.rules *.yaml
 recursive-include eukdetect/envs *.yml
+recursive-include eukdetect/util *.py
 recursive-exclude * __pycache__
 recursive-exclude * *.py[co]

@@ -1,5 +1,3 @@
-
-
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
@@ -79,6 +77,10 @@ class SnakemakeExecutor:
 			"--snakefile", str(self.snakefile),
 			"--configfile", config_path,
 			"--cores", str(self.cores),
+			# Each sample writes to its own output_dir, so pointing Snakemake's
+			# working directory there means concurrent jobs each lock a unique
+			# directory and never collide with one another.
+			"--directory", self.config_dict["output_dir"],
 		]
 		
 		# Add target rule based on mode
@@ -91,7 +93,12 @@ class SnakemakeExecutor:
 			args.append("printaln")
 		# 'all' is default, no need to specify
 
-		if self.force:
+		# --forceall reruns every rule in the DAG, including runaln.
+		# In analyze mode, --force means "overwrite existing filter outputs",
+		# which validate.py already handles by deleting them before Snakemake
+		# runs. Passing --forceall would unnecessarily re-run alignment.
+		# In aln/all modes --forceall is appropriate.
+		if self.force and self.mode != "analyze":
 			args.append("--forceall")
 		
 		if self.dry_run:
