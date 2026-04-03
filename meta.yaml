@@ -6,8 +6,8 @@ package:
   version: {{ version }}
 
 source:
-  url: https://github.com/allind/EukDetect/archive/refs/tags/v{{ version }}.tar.gz
-  # sha256: tbd
+  url: https://github.com/allind/EukDetect/archive/refs/tags/v2.0.0.tar.gz
+  sha256: a968d9d1175a043fb9b1deac0a2c3cea66af8cc3a5a9c3612df48a3a1d009707
 
 build:
   number: 0
