@@ -1,4 +1,3 @@
-
 from Bio import SeqIO
 from pathlib import Path
 from typing import List, Tuple
@@ -91,64 +90,67 @@ def check_database(config: dict) -> None:
 	logger.debug(f"Database validated: {db_dir}")
 
 
-def check_fastq_files(config: dict) -> None:
-	samples = config["samples"].keys()
-	fq_dir = Path(config["fq_dir"])
-	paired_end = config["paired_end"]
-	
-	missing = []
-	
-	for sample in samples:
-		if paired_end:
-			fwd = fq_dir / f"{sample}{config['fwd_suffix']}"
-			rev = fq_dir / f"{sample}{config['rev_suffix']}"
-			
-			if not fwd.exists():
-				missing.append(str(fwd))
-			if not rev.exists():
-				missing.append(str(rev))
-		else:
-			se = fq_dir / f"{sample}{config['se_suffix']}"
-			if not se.exists():
-				missing.append(str(se))
-	
-	if missing:
-		raise ValueError(
-			f"Missing input fastq files:\n  " + "\n  ".join(missing)
-		)
-	
-	logger.debug(f"All fastq files found for {len(samples)} sample(s)")
+def _get_sample_paths(config: dict, sample: str, info) -> List[Path]:
+	"""Return the read file Path(s) for a sample.
 
-
-def check_readlengths(config: dict) -> None:
-	samples = config["samples"].keys()
-	fq_dir = Path(config["fq_dir"])
-	expected_readlen = config["readlen"]
+	When config["samples"] contains per-sample dicts with absolute paths
+	(set by ConfigBuilder for single-sample / --name invocations), those are
+	used directly.  Otherwise (TSV config-file mode where info may be None),
+	paths are reconstructed from fq_dir + sample_name + suffix.
+	"""
 	paired_end = config["paired_end"]
-	
-	warnings = []
-	
-	for sample in samples:
+	fq_dir = Path(config["fq_dir"])
+
+	if info and isinstance(info, dict) and "reads1" in info:
+		# Absolute paths stored by ConfigBuilder — use them directly
+		paths = [Path(info["reads1"])]
+		if paired_end and "reads2" in info:
+			paths.append(Path(info["reads2"]))
+	else:
+		# TSV / config-file mode: reconstruct from fq_dir + suffix
 		if paired_end:
-			files = [
+			paths = [
 				fq_dir / f"{sample}{config['fwd_suffix']}",
 				fq_dir / f"{sample}{config['rev_suffix']}",
 			]
 		else:
-			files = [fq_dir / f"{sample}{config['se_suffix']}"]
-		
-		for fastq_file in files:
-			actual_readlen = _get_readlen(fastq_file)
+			paths = [fq_dir / f"{sample}{config['se_suffix']}"]
 
-			# 0 means the file couldn't be read; _get_readlen already logged a warning
+	return paths
+
+
+def check_fastq_files(config: dict) -> None:
+	samples = config["samples"]
+	missing = []
+
+	for sample, info in samples.items():
+		for p in _get_sample_paths(config, sample, info):
+			if not p.exists():
+				missing.append(str(p))
+
+	if missing:
+		raise ValueError(
+			"Missing input fastq files:\n  " + "\n  ".join(missing)
+		)
+
+	logger.debug(f"All fastq files found for {len(samples)} sample(s)")
+
+
+def check_readlengths(config: dict) -> None:
+	samples = config["samples"]
+	expected_readlen = config["readlen"]
+	warnings = []
+
+	for sample, info in samples.items():
+		for fastq_file in _get_sample_paths(config, sample, info):
+			actual_readlen = _get_readlen(fastq_file)
 			if actual_readlen == 0:
 				continue
-
 			if abs(actual_readlen - expected_readlen) > 10:
 				warnings.append(
 					f"{fastq_file.name}: actual={actual_readlen} bp, expected={expected_readlen} bp"
 				)
-	
+
 	if warnings:
 		logger.warning(
 			"Read length mismatch detected:\n  " + "\n  ".join(warnings)

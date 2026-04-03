@@ -5,3 +5,5 @@ tmp_test/*
 .pytest_cache/
 eukdb/
 .snakemake/
+build/
+dist/

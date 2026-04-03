@@ -54,8 +54,13 @@ rule alncmd:
 		with open(output[0], "w") as out:
 			for sample in samples:
 				if paired_end:
-					r1 = os.path.join(fq_dir, f"{sample}{config['fwd_suffix']}")
-					r2 = os.path.join(fq_dir, f"{sample}{config['rev_suffix']}")
+					sample_info = samples.get(sample)
+					if sample_info and isinstance(sample_info, dict) and "reads1" in sample_info:
+						r1 = sample_info["reads1"]
+						r2 = sample_info.get("reads2", os.path.join(fq_dir, f"{sample}{config['rev_suffix']}"))
+					else:
+						r1 = os.path.join(fq_dir, f"{sample}{config['fwd_suffix']}")
+						r2 = os.path.join(fq_dir, f"{sample}{config['rev_suffix']}")
 					bam = os.path.join(output_dir, f"aln/{sample}_aln_q10_lenfilter.sorted.bam")
 					cmd = (
 						f"bowtie2 -p {cores} --end-to-end --very-sensitive -X 1000.0"
@@ -67,7 +72,11 @@ rule alncmd:
 						f" samtools sort -@ {cores} -o {bam} -"
 					)
 				else:
-					fq = os.path.join(fq_dir, f"{sample}{config['se_suffix']}")
+					sample_info = samples.get(sample)
+					if sample_info and isinstance(sample_info, dict) and "reads1" in sample_info:
+						fq = sample_info["reads1"]
+					else:
+						fq = os.path.join(fq_dir, f"{sample}{config['se_suffix']}")
 					bam = os.path.join(output_dir, f"aln/{sample}_aln_q10_lenfilter.sorted.bam")
 					cmd = (
 						f"bowtie2 -p {cores} --end-to-end --very-sensitive"
@@ -84,13 +93,15 @@ rule alncmd:
 
 rule runaln:
 	input:
-		r1 = lambda wildcards: os.path.join(
-			config["fq_dir"],
-			wildcards.sample + (config["fwd_suffix"] if config["paired_end"] else config["se_suffix"])
+		r1 = lambda wildcards: (
+			config["samples"][wildcards.sample]["reads1"]
+			if config["samples"].get(wildcards.sample) and isinstance(config["samples"][wildcards.sample], dict) and "reads1" in config["samples"][wildcards.sample]
+			else os.path.join(config["fq_dir"], wildcards.sample + (config["fwd_suffix"] if config["paired_end"] else config["se_suffix"]))
 		),
 		r2 = lambda wildcards: (
-			os.path.join(config["fq_dir"], wildcards.sample + config["rev_suffix"])
-			if config["paired_end"] else []
+			config["samples"][wildcards.sample]["reads2"]
+			if config["paired_end"] and config["samples"].get(wildcards.sample) and isinstance(config["samples"][wildcards.sample], dict) and "reads2" in config["samples"][wildcards.sample]
+			else (os.path.join(config["fq_dir"], wildcards.sample + config["rev_suffix"]) if config["paired_end"] else [])
 		)
 	output:
 		bam = config["output_dir"] + "/aln/{sample}_aln_q10_lenfilter.sorted.bam"
@@ -224,4 +235,5 @@ rule taxonomize:
 			--eukfrac           {output.primary_eukfrac} \\
 			--alltab            {output.allhits}
 		"""
+
 

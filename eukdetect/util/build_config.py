@@ -1,4 +1,3 @@
-
 from Bio import SeqIO
 from pathlib import Path
 from typing import Dict, Optional
@@ -8,6 +7,17 @@ import gzip
 
 #set up logging
 logger = logging.getLogger(__name__)
+
+
+def _common_prefix(a: str, b: str) -> str:
+	"""Return the longest common prefix of two strings."""
+	i = 0
+	for x, y in zip(a, b):
+		if x != y:
+			break
+		i += 1
+	return a[:i]
+
 
 class ConfigBuilder:
 
@@ -31,6 +41,13 @@ class ConfigBuilder:
 		fastq_dir = self._get_fastq_dir()
 		eukdetect_dir = self._get_eukdetect_dir()
 
+		samples_config = {}
+		for name, info in self.samples.items():
+			entry = {"reads1": str(Path(info["reads1"]).absolute())}
+			if "reads2" in info:
+				entry["reads2"] = str(Path(info["reads2"]).absolute())
+			samples_config[name] = entry
+
 		config = {
 			"output_dir": str(Path(self.output_dir).absolute()),
 			"paired_end": self.paired_end,
@@ -43,7 +60,7 @@ class ConfigBuilder:
 			"database_prefix": self.database_prefix,
 			"eukdetect_dir": eukdetect_dir,
 			"bowtie2_cores": self.bowtie2_cores,
-			"samples": {name: None for name in self.samples.keys()}
+			"samples": samples_config,
 		}
 
 		return config
@@ -88,40 +105,73 @@ class ConfigBuilder:
 
 
 	def _determine_suffixes(self) -> tuple:
+		"""Derive fwd/rev/se suffixes from the first sample's filenames.
 
-		
+		Suffixes are used by eukdetect.rules (Snakemake) to locate reads for
+		samples loaded from a TSV config file, where only sample names and
+		fq_dir are available.  For single-sample (--name) invocations the
+		suffixes are not used for validation or alignment — the absolute paths
+		stored in config["samples"] are used instead — but we still populate
+		them with sensible values for compatibility.
+
+		The derivation strips the sample name from the filename when it is
+		present as a prefix.  When --name does not appear in the filename
+		(e.g. --name ERR4097171_5000000 with file ERR4097171_1.fastq.gz) we
+		fall back to stripping the longest common prefix of the two paired
+		filenames up to the last separator character.
+		"""
 		first_sample = list(self.samples.values())[0]
 		first_name = list(self.samples.keys())[0]
 		fastq1 = Path(first_sample["reads1"]).name
-		
+
 		if self.paired_end and "reads2" in first_sample:
 			fastq2 = Path(first_sample["reads2"]).name
-			
-			# Remove sample name to get suffix
-			fwd_suffix = fastq1.replace(first_name, "", 1)
-			rev_suffix = fastq2.replace(first_name, "", 1)
-			se_suffix = ".fastq.gz"  # default
-			
-			logger.debug(f"Detected paired-end suffixes: {fwd_suffix}, {rev_suffix}")
+
+			if fastq1.startswith(first_name) and fastq2.startswith(first_name):
+				fwd_suffix = fastq1[len(first_name):]
+				rev_suffix = fastq2[len(first_name):]
+			else:
+				common = _common_prefix(fastq1, fastq2)
+				sep_idx = len(common)
+				while sep_idx > 0 and common[sep_idx - 1] not in ("_", "-", "."):
+					sep_idx -= 1
+				common = common[:sep_idx]
+				fwd_suffix = fastq1[len(common):]
+				rev_suffix = fastq2[len(common):]
+				logger.debug(
+					f"Sample name '{first_name}' not found as filename prefix; "
+					f"derived suffixes from common prefix '{common}': "
+					f"fwd='{fwd_suffix}' rev='{rev_suffix}'"
+				)
+
+			se_suffix = ".fastq.gz"  # default, not used in paired mode
+			logger.debug(f"Paired-end suffixes: fwd='{fwd_suffix}' rev='{rev_suffix}'")
+
 		else:
 			# Single-end
-			se_suffix = fastq1.replace(first_name, "", 1)
-			fwd_suffix = "_1.fastq.gz"  # defaults
+			if fastq1.startswith(first_name):
+				se_suffix = fastq1[len(first_name):]
+			else:
+				known_exts = [".fastq.gz", ".fq.gz", ".fastq", ".fq",
+							  ".FASTQ.GZ", ".FQ.GZ", ".FASTQ", ".FQ"]
+				se_suffix = ".fastq.gz"  # fallback
+				for ext in known_exts:
+					if fastq1.endswith(ext):
+						se_suffix = ext
+						break
+			fwd_suffix = "_1.fastq.gz"  # defaults, not used in SE mode
 			rev_suffix = "_2.fastq.gz"
-			
-			logger.debug(f"Detected single-end suffix: {se_suffix}")
-		
+			logger.debug(f"Single-end suffix: '{se_suffix}'")
+
 		return fwd_suffix, rev_suffix, se_suffix
 
 
 	def _get_fastq_dir(self) -> str:
-
 		first_sample = list(self.samples.values())[0]
 		fastq_path = Path(first_sample["reads1"])
 		return str(fastq_path.parent.absolute())
 	
 	def _get_eukdetect_dir(self) -> str:
-		
 		try:
 			import eukdetect
 			pkg_path = Path(eukdetect.__file__).parent
@@ -130,5 +180,3 @@ class ConfigBuilder:
 			# Fallback for development
 			logger.warning("Could not determine package installation path")
 			return str(Path(__file__).parent.parent.absolute())
-
-

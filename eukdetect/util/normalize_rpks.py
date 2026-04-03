@@ -3,21 +3,20 @@
 Create unified abundance table from multiple EukDetect samples
 
 This script merges EukDetect eukfrac files into a single table with one row per species
-and columns for each sample's RPKS, RPKSM (normalized), and EukFrac values.
+and columns for each sample's RPKS, RPKSB (normalized), and EukFrac values.
 
-Similar to MetaPhlAn's merge_metaphlan_tables.py output format.
 
 Usage:
-	python create_unified_table.py --eukfrac sample1_eukfrac.txt [sample2_eukfrac.txt ...] \\
-	                               --library-sizes library_sizes.tsv \\
-	                               --output unified_abundance.tsv
+	python normalize_rpks.py --eukfrac sample1_eukfrac.txt [sample2_eukfrac.txt ...] \
+	                         --library-sizes library_sizes.tsv \
+	                         --output unified_abundance.tsv
 
 Library sizes file format (tab-separated):
 	Column 1: sample name
-	Column 2: total reads (integer)
+	Column 2: total bases (integer)
 
 Output format:
-	TaxID  Name  Lineage  sample1_RPKS  sample1_RPKSM  sample1_EukFrac  sample2_RPKS  ...
+	TaxID  Name  Lineage  sample1_RPKS  sample1_RPKSB  sample1_EukFrac  sample2_RPKS  ...
 """
 
 import argparse
@@ -54,18 +53,18 @@ def parse_library_sizes(library_file):
 				sample = parts[0]
 				
 				try:
-					total_reads = int(parts[1])
+					total_bases = float(parts[1])
 				except ValueError:
 					raise ValueError(
-						f"Error on line {line_num}: Column 2 must contain integers.\n"
+						f"Error on line {line_num}: Column 2 must be a number (integer, float, or scientific notation).\n"
 						f"Sample: {sample}, Value: '{parts[1]}'"
 					)
 				
-				if total_reads <= 0:
-					logger.warning(f"Sample {sample} has invalid read count: {total_reads}")
+				if total_bases <= 0:
+					logger.warning(f"Sample {sample} has invalid base count: {total_bases}")
 					continue
 				
-				library_sizes[sample] = total_reads
+				library_sizes[sample] = total_bases
 		
 		logger.info(f"Loaded library sizes for {len(library_sizes)} samples")
 		return library_sizes
@@ -106,8 +105,8 @@ def parse_eukfrac_file(eukfrac_file, library_sizes):
 		)
 		sys.exit(1)
 	
-	total_reads = library_sizes[sample_name]
-	#logger.info(f"Processing {sample_name}: {total_reads:,} total reads")
+	total_bases = library_sizes[sample_name]
+	#logger.info(f"Processing {sample_name}: {total_bases:,} total bases")
 	
 	taxon_data = {}
 	
@@ -171,14 +170,14 @@ def parse_eukfrac_file(eukfrac_file, library_sizes):
 				# Parse RPKS: NA for non-species ranks, numeric (including 0) for species
 				if rank != 'species':
 					rpks = 'NA'
-					rpksm = 'NA'
+					rpksb = 'NA'
 				else:
 					try:
 						rpks = float(rpks_str) if rpks_str != 'NA' else 0.0
-						rpksm = rpks / (total_reads / 1_000_000)
+						rpksb = rpks / (total_bases / 1_000_000_000)
 					except ValueError:
 						rpks = 0.0
-						rpksm = 0.0
+						rpksb = 0.0
 				
 				# Parse EukFrac
 				try:
@@ -191,7 +190,7 @@ def parse_eukfrac_file(eukfrac_file, library_sizes):
 					'name': name,
 					'taxid': taxid,
 					'rpks': rpks,
-					'rpksm': rpksm,
+					'rpksb': rpksb,
 					'eukfrac': eukfrac
 				}
 		
@@ -248,7 +247,7 @@ def write_unified_table(all_lineages, lineage_info, sample_data, sample_order, o
 			for sample in sample_order:
 				header_parts.extend([
 					f'{sample}_RPKS',
-					f'{sample}_RPKSM',
+					f'{sample}_RPKSB',
 					f'{sample}_EukFrac'
 				])
 			f.write('\t'.join(header_parts) + '\n')
@@ -262,17 +261,17 @@ def write_unified_table(all_lineages, lineage_info, sample_data, sample_order, o
 					if sample in sample_data and lineage in sample_data[sample]:
 						data = sample_data[sample][lineage]
 						
-						# Format RPKS and RPKSM (NA for non-species, numeric for species)
+						# Format RPKS and RPKSB (NA for non-species, numeric for species)
 						if data['rpks'] == 'NA':
 							rpks_str = 'NA'
-							rpksm_str = 'NA'
+							rpksb_str = 'NA'
 						else:
 							rpks_str = f"{data['rpks']:.6f}"
-							rpksm_str = f"{data['rpksm']:.6f}"
+							rpksb_str = f"{data['rpksb']:.6f}"
 						
 						row_parts.extend([
 							rpks_str,
-							rpksm_str,
+							rpksb_str,
 							f"{data['eukfrac']:.6f}"
 						])
 					else:
@@ -303,15 +302,15 @@ Examples:
     --output unified_abundance.tsv
 
 Output format:
-  Lineage  Rank    Name      TaxID  sample1_RPKS  sample1_RPKSM  sample1_EukFrac  sample2_RPKS  ...
+  Lineage  Rank    Name      TaxID  sample1_RPKS  sample1_RPKSB  sample1_EukFrac  sample2_RPKS  ...
   phylum-Ascomycota  phylum  Ascomycota  4890  NA  NA  100.0  NA  ...
   phylum-Ascomycota|class-Saccharomycetes  class  Saccharomycetes  4891  NA  NA  100.0  NA  ...
   ...
   phylum-Ascomycota|...|species-Saccharomyces_cerevisiae  species  Saccharomyces cerevisiae  4932  0.0197  0.00394  100.0  ...
 
   - One row per taxon (all taxonomic levels: phylum, class, order, family, genus, species)
-  - Three columns per sample: RPKS, RPKSM (normalized), EukFrac
-  - RPKS and RPKSM are NA for non-species ranks
+  - Three columns per sample: RPKS, RPKSB (normalized), EukFrac
+  - RPKS and RPKSB are NA for non-species ranks
   - Zero values for taxa not detected in a sample
   - Taxonomic tree structure preserved (sorted by lineage string)
 		"""
@@ -329,7 +328,7 @@ Output format:
 		'--library-sizes',
 		required=True,
 		metavar='FILE',
-		help='Tab-separated file: column 1 = sample names, column 2 = total reads'
+		help='Tab-separated file: column 1 = sample names, column 2 = total bases'
 	)
 	
 	parser.add_argument(
