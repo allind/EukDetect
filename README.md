@@ -78,25 +78,14 @@ eukdetect --help
 
 The EukDetect2 database is hosted on [Zenodo](https://zenodo.org/records/19056625) (DOI: 10.5281/zenodo.19056625). The database files total approximately 7.1 GB.
 
-Download all files individually using `wget`:
+Download all files individually using `wgeta:
 
-```bash
+```
 mkdir eukdb
 cd eukdb
-
-wget https://zenodo.org/records/19056625/files/eukdb.1.bt2l
-wget https://zenodo.org/records/19056625/files/eukdb.2.bt2l
-wget https://zenodo.org/records/19056625/files/eukdb.3.bt2l
-wget https://zenodo.org/records/19056625/files/eukdb.4.bt2l
-wget https://zenodo.org/records/19056625/files/eukdb.rev.1.bt2l
-wget https://zenodo.org/records/19056625/files/eukdb.rev.2.bt2l
-wget https://zenodo.org/records/19056625/files/eukdb.fasta
-wget https://zenodo.org/records/19056625/files/busco_taxid_genome_link.txt
-wget https://zenodo.org/records/19056625/files/specific_and_inherited_markers_per_taxid.txt
-wget https://zenodo.org/records/19056625/files/taxid_and_genome_cumulativelength.txt
-wget https://zenodo.org/records/19056625/files/taxa.sqlite
-wget https://zenodo.org/records/19056625/files/taxa.sqlite.traverse.pkl
-wget https://zenodo.org/records/19056625/files/taxdump.tar.gz
+wget https://zenodo.org/api/records/19056625/files-archive -O eukdetect2_database.zip
+unzip eukdetect2_database.zip
+rm eukdetect2_database.zip
 ```
 
 After downloading, pass the `eukdb/` directory path to EukDetect via `--database eukdb/`. The default database prefix is `eukdb` (matching the `.bt2l` index files); no `--database-prefix` flag is needed unless you rename the files.
@@ -320,7 +309,7 @@ sample3	15000000000
 
 **To compute total bases from FASTQ files:**
 
-```bash
+```
 echo -e "sample_name\ttotal_bases" > library_sizes.tsv
 
 # Paired-end: sum bases across both read files
@@ -353,13 +342,13 @@ The EukDetect pipeline uses the ete3 package to interface with the NCBI taxonomy
 
 If you encounter errors from the ete3 package, you may need to regenerate the taxonomy database. From the `eukdb/` directory:
 
-```bash
+```
 conda activate eukdetect
 ```
 
 Open a Python console and run:
 
-```python
+```
 from ete3 import NCBITaxa
 ncbi = NCBITaxa()
 ncbi.update_taxonomy_database(taxdump_file="taxdump.tar.gz")
