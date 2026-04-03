@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "eukdetect"
-version = "v2.0.1"
+version = "v2.0.0"
 authors = [
     { name = "Abigail Lind" }
 ]
