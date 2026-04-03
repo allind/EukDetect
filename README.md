@@ -21,18 +21,15 @@ FASTQ reads
 [bowtie2] — align to EukDetect marker gene database (end-to-end, very-sensitive)
     │         — filter: MAPQ ≥ 10, aligned length ≥ 80% of read length
     ▼
-[bedtools bamtofastq → kz (komplexity)] — identify and remove low-complexity reads
-    │
-    ▼
-[samtools fixmate + markdup] — remove PCR duplicates
-    │
+[complexity_filter.py] — remove low-complexity reads (unique 4-mers / length < 0.5)
+    │                   — remove PCR duplicates (highest base-quality read kept per position)
     ▼
 [bam_to_pid.py] — count reads and compute percent identity per marker gene
     │
     ▼
 [eukfrac_calc.py] — taxonomic assignment, genus/genome-level disambiguation,
     │                filtering (≥ 2 marker genes AND ≥ 4 reads),
-    │                RPKS calculation and relative abundance (RelEuk)
+    │                RPKS calculation and relative abundance (EukFrac)
     ▼
 {sample}_filtered_hits_table.txt
 {sample}_filtered_hits_eukfrac.txt

@@ -1,21 +1,19 @@
-#package-level script locations are determined at load
 import os as _os
-_EUKDETECT_DIR = config["eukdetect_dir"]
-_BAM_TO_PID    = _os.path.join(_EUKDETECT_DIR, "util", "bam_to_pid.py")
-_EUKFRAC_CALC  = _os.path.join(_EUKDETECT_DIR, "util", "eukfrac_calc.py")
+_EUKDETECT_DIR    = config["eukdetect_dir"]
+_BAM_TO_PID       = _os.path.join(_EUKDETECT_DIR, "util", "bam_to_pid.py")
+_EUKFRAC_CALC     = _os.path.join(_EUKDETECT_DIR, "util", "eukfrac_calc.py")
+_COMPLEXITY_FILTER = _os.path.join(_EUKDETECT_DIR, "util", "complexity_filter.py")
 
-
-
-#targets
+#Target rules
 
 rule all:
 	input:
 		expand("{output_dir}/aln/{sample}_aln_q10_lenfilter.sorted.bam", sample=config["samples"], output_dir=config["output_dir"]),
 		expand("{output_dir}/filtering/{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam", sample=config["samples"], output_dir=config["output_dir"]),
 		expand("{output_dir}/filtering/{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam.bai", sample=config["samples"], output_dir=config["output_dir"]),
-		expand("{output_dir}/filtering/{sample}_read_counts_and_mismatches.txt", sample=config["samples"], output_dir=config["output_dir"]), 
-		expand("{output_dir}/filtering/{sample}_all_hits_table.txt", sample=config["samples"], output_dir=config["output_dir"]), 
-		expand("{output_dir}/{sample}_filtered_hits_table.txt", sample=config["samples"], output_dir=config["output_dir"]), 
+		expand("{output_dir}/filtering/{sample}_read_counts_and_mismatches.txt", sample=config["samples"], output_dir=config["output_dir"]),
+		expand("{output_dir}/filtering/{sample}_all_hits_table.txt", sample=config["samples"], output_dir=config["output_dir"]),
+		expand("{output_dir}/{sample}_filtered_hits_table.txt", sample=config["samples"], output_dir=config["output_dir"]),
 		expand("{output_dir}/{sample}_filtered_hits_eukfrac.txt", sample=config["samples"], output_dir=config["output_dir"])
 
 rule printaln:
@@ -23,19 +21,20 @@ rule printaln:
 		config["output_dir"] + "/alignment_commands.txt"
 
 rule aln:
-	input:	
+	input:
 		expand("{output_dir}/aln/{sample}_aln_q10_lenfilter.sorted.bam", sample=config["samples"], output_dir=config["output_dir"])
 
 rule analyze:
 	input:
 		expand("{output_dir}/filtering/{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam", sample=config["samples"], output_dir=config["output_dir"]),
 		expand("{output_dir}/filtering/{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam.bai", sample=config["samples"], output_dir=config["output_dir"]),
-		expand("{output_dir}/filtering/{sample}_read_counts_and_mismatches.txt", sample=config["samples"], output_dir=config["output_dir"]), 
-		expand("{output_dir}/filtering/{sample}_all_hits_table.txt", sample=config["samples"], output_dir=config["output_dir"]), 
+		expand("{output_dir}/filtering/{sample}_read_counts_and_mismatches.txt", sample=config["samples"], output_dir=config["output_dir"]),
+		expand("{output_dir}/filtering/{sample}_all_hits_table.txt", sample=config["samples"], output_dir=config["output_dir"]),
 		expand("{output_dir}/{sample}_filtered_hits_table.txt", sample=config["samples"], output_dir=config["output_dir"]),
 		expand("{output_dir}/{sample}_filtered_hits_eukfrac.txt", sample=config["samples"], output_dir=config["output_dir"])
 
-#rules
+
+#Alignment
 
 rule alncmd:
 	output:
@@ -90,7 +89,6 @@ rule alncmd:
 				out.write(cmd + "\n")
 
 
-
 rule runaln:
 	input:
 		r1 = lambda wildcards: (
@@ -130,65 +128,21 @@ rule runaln:
 		fi
 		"""
 
-rule bam2fastq:
+
+#Filtering
+
+rule complexity_and_dedup:
 	input:
 		bam = config["output_dir"] + "/aln/{sample}_aln_q10_lenfilter.sorted.bam"
 	output:
-		temp(config["output_dir"] + "/aln/{sample}_aln_q10_lenfilter.fq")
+		bam = config["output_dir"] + "/filtering/{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam"
+	params:
+		script = _COMPLEXITY_FILTER
 	shell:
-		"bedtools bamtofastq -i {input.bam} -fq {output}"
-
-rule find_low_complexity:
-	input:
-		fq = config["output_dir"] + "/aln/{sample}_aln_q10_lenfilter.fq"
-	output:
-		temp(config["output_dir"] + "/aln/{sample}_low_complexity.txt")
-	shell:
-		"cat {input.fq} | kz | awk '{{ if ($4<0.5) print $1 }}' > {output}"
-
-rule remove_low_complexity:
-	input:
-		inbam = config["output_dir"] + "/aln/{sample}_aln_q10_lenfilter.sorted.bam",
-		drop_complex = config["output_dir"] + "/aln/{sample}_low_complexity.txt"
-	output:
-		temp(config["output_dir"] + "/aln/{sample}_aln_q10_lenfilter_complexity.sorted.bam")
-	run:
-		import os
-		if os.path.getsize(input.drop_complex) > 0:
-			shell("samtools view -h {input.inbam} | grep -F -v -f {input.drop_complex} | samtools view -bS - > {output[0]}")
-		else:
-			shell("samtools view -b {input.inbam} > {output[0]}")
+		"python {params.script} {input.bam} {output.bam}"
 
 
-rule fixmate:
-	input:
-		inbam = config["output_dir"] + "/aln/{sample}_aln_q10_lenfilter_complexity.sorted.bam"
-	output:
-		temp(config["output_dir"] + "/filtering/{sample}_aln_q10_lenfilter_complexity_fixmate.bam")
-	shell:
-		"""
-		samtools sort -n {input.inbam} | samtools fixmate -m - {output}
-		"""
-
-rule markdup:
-	input:
-		config["output_dir"] + "/filtering/{sample}_aln_q10_lenfilter_complexity_fixmate.bam"
-	output:
-		temp(config["output_dir"] + "/filtering/{sample}_aln_q10_lenfilter_complexity_rmdup.bam")
-	shell:
-		"""
-		samtools sort {input} | samtools markdup -r -s - {output}
-		"""
-
-rule rmsort:
-	input:
-		config["output_dir"] + "/filtering/{sample}_aln_q10_lenfilter_complexity_rmdup.bam"
-	output:
-		config["output_dir"] + "/filtering/{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam"
-	shell:
-		"""
-		samtools sort -o {output} {input}
-		"""	
+#Index
 
 rule index:
 	input:
@@ -197,6 +151,8 @@ rule index:
 		bai = config["output_dir"] + "/filtering/{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam.bai"
 	shell:
 		"samtools index {input.bam} {output.bai}"
+
+#Count
 
 rule countreads:
 	input:
@@ -209,7 +165,8 @@ rule countreads:
 		script = _BAM_TO_PID
 	shell:
 		"python {params.script} {input.bam} {input.ref} > {output.counts}"
-		
+#taxonomy
+
 rule taxonomize:
 	input:
 		counts            = config["output_dir"] + "/filtering/{sample}_read_counts_and_mismatches.txt",
@@ -218,8 +175,8 @@ rule taxonomize:
 		taxdb             = config["database_dir"] + "/taxa.sqlite",
 		genelens          = config["database_dir"] + "/taxid_and_genome_cumulativelength.txt"
 	output:
-		allhits       = config["output_dir"] + "/filtering/{sample}_all_hits_table.txt",
-		primary_hits  = config["output_dir"] + "/{sample}_filtered_hits_table.txt",
+		allhits         = config["output_dir"] + "/filtering/{sample}_all_hits_table.txt",
+		primary_hits    = config["output_dir"] + "/{sample}_filtered_hits_table.txt",
 		primary_eukfrac = config["output_dir"] + "/{sample}_filtered_hits_eukfrac.txt"
 	params:
 		script = _EUKFRAC_CALC
@@ -235,5 +192,4 @@ rule taxonomize:
 			--eukfrac           {output.primary_eukfrac} \\
 			--alltab            {output.allhits}
 		"""
-
 
