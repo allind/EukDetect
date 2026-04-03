@@ -7,7 +7,7 @@ package:
 
 source:
   url: https://github.com/allind/EukDetect/archive/refs/tags/v2.0.1.tar.gz
-  # sha256: <flater>
+  sha256: fa0504aa11cc96c018d9826d6c41c06b74908d83edff14d6f1af941ab128a84b
 
 build:
   number: 0
