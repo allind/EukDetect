@@ -34,7 +34,7 @@ def create_parser():
 		formatter_class = argparse.RawDescriptionHelpFormatter
 	)
 
-	parser.add_argument("--version", action='version', version='EukDetect 2.0.0')
+	parser.add_argument("--version", action='version', version='EukDetect v2.0.1')
 	parser.add_argument("--verbose", "-v", action="store_true", help="verbose")
 
 	#subparsers for commands

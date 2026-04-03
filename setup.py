@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
  
 setuptools.setup(
 		name="eukdetect",
-		version="2.0.0",
+		version="v2.0.1",
 		author="Abigail Lind",
 		description="Detect eukaryotes from shotgun metagenomic data",
 		long_description=long_description,
