@@ -1,5 +1,5 @@
 {% set name = "eukdetect" %}
-{% set version = "v2.0.0" %}
+{% set version = "2.0.0" %}
 
 package:
   name: {{ name|lower }}
@@ -7,12 +7,15 @@ package:
 
 source:
   url: https://github.com/allind/EukDetect/archive/refs/tags/v2.0.0.tar.gz
-  sha256: a968d9d1175a043fb9b1deac0a2c3cea66af8cc3a5a9c3612df48a3a1d009707
+  sha256: 4069d41d2e5bee94b4e4ec058f136bcc0cc4acc51102fb236203bc861c1393f1
 
 build:
   number: 0
   noarch: python
   script: {{ PYTHON }} -m pip install . --no-deps --no-build-isolation --no-cache-dir -vvv
+  run_exports:
+    - {{ pin_subpackage('eukdetect', max_pin='x.x') }}
+
 
 requirements:
   host:
