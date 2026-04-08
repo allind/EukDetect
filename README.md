@@ -45,7 +45,12 @@ FASTQ reads
 
 ### Option 1: Install from Bioconda (Recommended)
 
-TBD
+To install EukDetect throuch bioconda, run:
+
+```
+conda create -n eukdetect2 -c bioconda eukdetect
+
+```
 
 ### Option 2: Install from GitHub
 
