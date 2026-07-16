@@ -80,14 +80,12 @@ eukdetect --help
 
 The EukDetect2 database is hosted on [Zenodo](https://zenodo.org/records/19056625) (DOI: 10.5281/zenodo.19056625). The database files total approximately 7.1 GB.
 
-Download all files individually using `wgeta:
+Download all files individually using zenodo_get (included in EukDetect2 environment):
 
 ```
 mkdir eukdb
 cd eukdb
-wget https://zenodo.org/api/records/19056625/files-archive -O eukdetect2_database.zip
-unzip eukdetect2_database.zip
-rm eukdetect2_database.zip
+zenodo_get 19056625
 ```
 
 After downloading, pass the `eukdb/` directory path to EukDetect via `--database eukdb/`. The default database prefix is `eukdb` (matching the `.bt2l` index files); no `--database-prefix` flag is needed unless you rename the files.
