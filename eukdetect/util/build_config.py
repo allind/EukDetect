@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 
 
 def _common_prefix(a: str, b: str) -> str:
-	"""Return the longest common prefix of two strings."""
 	i = 0
 	for x, y in zip(a, b):
 		if x != y:
@@ -21,7 +20,7 @@ def _common_prefix(a: str, b: str) -> str:
 
 class ConfigBuilder:
 
-	def __init__(self, samples: Dict[str,dict], output_dir: str, database_dir: str, database_prefix: str = "eukdb_clust97", paired_end: bool = True, readlen: Optional[int] = None, bowtie2_cores: int = 1):
+	def __init__(self, samples: Dict[str,dict], output_dir: str, database_dir: str, database_prefix: str = "eukdb_clust97", paired_end: bool = True, readlen: Optional[int] = None, bowtie2_cores: int = 1, ani_file: Optional[str] = None, ani_threshold: Optional[float] = None, anchor_alpha: Optional[float] = None):
 		self.samples = samples
 		self.output_dir = output_dir
 		self.database_dir = database_dir
@@ -29,6 +28,11 @@ class ConfigBuilder:
 		self.paired_end = paired_end
 		self.readlen = readlen
 		self.bowtie2_cores = bowtie2_cores
+		self.ani_file = ani_file
+		# Left out of the config when unset so the workflow default applies,
+		# rather than writing the default down in a second place.
+		self.ani_threshold = ani_threshold
+		self.anchor_alpha = anchor_alpha
 
 	def build(self) -> dict:
 
@@ -61,6 +65,11 @@ class ConfigBuilder:
 			"eukdetect_dir": eukdetect_dir,
 			"bowtie2_cores": self.bowtie2_cores,
 			"samples": samples_config,
+			"ani_file": self.ani_file,
+			**({"ani_threshold": self.ani_threshold}
+			   if self.ani_threshold is not None else {}),
+			**({"anchor_alpha": self.anchor_alpha}
+			   if self.anchor_alpha is not None else {}),
 		}
 
 		return config
@@ -105,21 +114,6 @@ class ConfigBuilder:
 
 
 	def _determine_suffixes(self) -> tuple:
-		"""Derive fwd/rev/se suffixes from the first sample's filenames.
-
-		Suffixes are used by eukdetect.rules (Snakemake) to locate reads for
-		samples loaded from a TSV config file, where only sample names and
-		fq_dir are available.  For single-sample (--name) invocations the
-		suffixes are not used for validation or alignment — the absolute paths
-		stored in config["samples"] are used instead — but we still populate
-		them with sensible values for compatibility.
-
-		The derivation strips the sample name from the filename when it is
-		present as a prefix.  When --name does not appear in the filename
-		(e.g. --name ERR4097171_5000000 with file ERR4097171_1.fastq.gz) we
-		fall back to stripping the longest common prefix of the two paired
-		filenames up to the last separator character.
-		"""
 		first_sample = list(self.samples.values())[0]
 		first_name = list(self.samples.keys())[0]
 		fastq1 = Path(first_sample["reads1"]).name

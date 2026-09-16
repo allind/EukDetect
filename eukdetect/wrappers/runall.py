@@ -13,6 +13,7 @@ import re
 from ..util.execute import SnakemakeExecutor
 from ..util.build_config import ConfigBuilder
 from ..util.validate import validate_inputs
+from ..util.reassign_eval import DEFAULT_SPLIT_ALPHA
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +56,38 @@ def validate_sample_name(name):
 	
 	return name
 
+
+
+def _add_ani_args(dbopt):
+
+	dbopt.add_argument(
+		"--ani-file",
+		dest="ani_file",
+		default=None,
+		metavar="PATH",
+		help="Genome ANI table, genome_1<TAB>genome_2<TAB>ANI with no header "
+			 "(default: <database>/ani.tsv)"
+	)
+	dbopt.add_argument(
+		"--ani-threshold",
+		dest="ani_threshold",
+		type=float,
+		default=None,
+		help=argparse.SUPPRESS
+	)
+
+
+def _add_reassignment_args(group):
+
+	group.add_argument(
+		"--anchor-alpha",
+		dest="anchor_alpha",
+		type=float,
+		default=None,
+		help=f"Significance level for the sub-population test that can keep a "
+			 f"secondary species otherwise flagged for reassignment "
+			 f"(default: {DEFAULT_SPLIT_ALPHA})"
+	)
 
 
 def parseargs_single(parser):
@@ -123,6 +156,11 @@ def parseargs_single(parser):
 		metavar="NAME",
 		help="Database prefix name (default: eukdb)"
 	)
+
+	_add_ani_args(dbopt)
+
+	reassign_grp = parser.add_argument_group("Reassignment")
+	_add_reassignment_args(reassign_grp)
 	
 	execs = parser.add_argument_group("Execution")
 	
@@ -233,6 +271,11 @@ def parseargs_batch(parser):
 		metavar="NAME",
 		help="Database prefix name (default: eukdb)"
 	)
+
+	_add_ani_args(dbopt)
+
+	reassign_grp = parser.add_argument_group("Reassignment")
+	_add_reassignment_args(reassign_grp)
 	
 	execs = parser.add_argument_group("Execution")
 	
@@ -273,6 +316,13 @@ def parseargs_batch(parser):
 
 def execute(args):
 	try:
+
+		for _attr in ("database", "output", "reads1", "reads2", "samples",
+					  "ani_file", "config", "configfile_out"):
+			_val = getattr(args, _attr, None)
+			if _val:
+				setattr(args, _attr, os.path.abspath(_val))
+
 		database = args.database
 		
 		#Set bowtie2 cores and snakemake cores
@@ -357,6 +407,10 @@ def execute(args):
 				output_dir=args.output,
 				database_dir=database,
 				database_prefix=args.database_prefix,
+				ani_file=(args.ani_file or
+						  os.path.join(database, "ani.tsv")),
+				ani_threshold=args.ani_threshold,
+				anchor_alpha=args.anchor_alpha,
 				paired_end=paired_end,
 				readlen=args.readlen,
 				bowtie2_cores=bowtie2_cores,  #NEW

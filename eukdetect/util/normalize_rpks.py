@@ -1,23 +1,5 @@
 #!/usr/bin/env python3
-"""
-Create unified abundance table from multiple EukDetect samples
 
-This script merges EukDetect eukfrac files into a single table with one row per species
-and columns for each sample's RPKS, RPKSB (normalized), and EukFrac values.
-
-
-Usage:
-	python normalize_rpks.py --eukfrac sample1_eukfrac.txt [sample2_eukfrac.txt ...] \
-	                         --library-sizes library_sizes.tsv \
-	                         --output unified_abundance.tsv
-
-Library sizes file format (tab-separated):
-	Column 1: sample name
-	Column 2: total bases (integer)
-
-Output format:
-	TaxID  Name  Lineage  sample1_RPKS  sample1_RPKSB  sample1_EukFrac  sample2_RPKS  ...
-"""
 
 import argparse
 import sys

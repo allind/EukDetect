@@ -30,6 +30,151 @@ database_prefix: "ncbi_eukprot_met_arch_markers.fna"
 #full path to eukdetect installation folder
 eukdetect_dir: "/path/to/dir"
 
+#--- Taxonomic disambiguation -------------------------------------------------
+
+#The ANI table that decides which species compete for reads lives in the
+#database directory as <database_dir>/ani.tsv and is not configurable. It is a
+#required database file: three tab-separated columns, no header, genome_1,
+#genome_2, ANI, with genome IDs matching column 3 of
+#busco_taxid_genome_link.txt. This replaces NCBI genus, which is nomenclature
+#rather than similarity and both misses near-identical species in different
+#genera and lumps divergent congeners together.
+
+#ANI cutoff on the 0-1 scale. Values on a 0-100 scale are auto-detected.
+#
+#This is NOT a species boundary. It asks "are these two close enough that their
+#reads can be confused", which is a far looser question, so the right value sits
+#well below the 0.95-0.97 usually quoted for species delimitation.
+#
+#Calibrate against marker identity, not genome identity. BUSCO markers are
+#conserved genes and run 3.6-9.6 points more identical than the genome average
+#(measured on Aspergillus fumigatus against 15 relatives), so a genome-ANI
+#cutoff has to sit well below the marker identity it stands in for. At 0.97 the
+#cutoff produced 17 edges across an entire database and every A. fumigatus
+#congener (86-93 ANI) fell below it, leaving taxonomy to do all the work.
+#
+#Cross-genus cases are the reason this setting exists. Neosartorya sp. G127/G150
+#sit at 86-90 ANI to A. fumigatus, inside the range of the Aspergillus congeners,
+#but carry a different genus label so taxonomy grouping cannot see them.
+#
+#0.80 is at or below skani's own reporting floor, so in practice it keeps every
+#pair skani measured and the cutoff stops filtering. That is deliberate: over-
+#grouping costs realignment time, while under-grouping costs a species, and the
+#identity floor below is what actually prevents over-calling. Raise this above
+#the observed floor (logged at startup) if you want it to filter again.
+#
+#Watch group sizes: single linkage can chain at low cutoffs. To check, and to
+#compare against --linkage complete:
+#  python eukdetect/util/ani_clusters.py --ani <db>/ani.tsv \
+#      --taxid_link <db>/busco_taxid_genome_link.txt --taxdb <db>/taxa.sqlite \
+#      --ani_cutoff 0.80 --out clusters.tsv
+#  cut -f2 clusters.tsv | sort -n | uniq -c | tail
+ani_cutoff: 0.80
+
+#single | complete | average. Single linkage is the default on purpose: an extra
+#species in a competition group is harmless because realignment resolves it,
+#whereas a missing competitor is exactly how a low-abundance species gets
+#absorbed by an abundant relative. Use complete if single linkage chains.
+ani_linkage: "single"
+
+#--- Taxonomy grouping --------------------------------------------------------
+
+#Competition groups are the UNION of two kinds of link: genomes at or above the
+#ANI cutoff, and taxa sharing an NCBI ancestor at taxonomy_rank. Neither alone is
+#enough. ANI cannot see the ~30 transcriptome-derived entries that have no genome
+#to compare, nor pairs below skani's internal reporting floor. NCBI genus cannot
+#see near-identical species that taxonomy has split across genera. Taking the
+#union means a wrong or over-split genus is corrected by ANI, and a gap in ANI
+#coverage is covered by taxonomy.
+#Grouping two species is a decision to COMPETE them, not to merge them: divergent
+#members keep their own unique reads and are still reported separately. An
+#over-inclusive group costs realignment time; an under-inclusive one costs a
+#species. Set false to use ANI links alone.
+group_by_taxonomy: true
+
+#NCBI rank unioned with ANI. Raising this above genus groups far more
+#aggressively and makes unresolved-cluster calls much less specific.
+taxonomy_rank: "genus"
+
+#Realign competing species against a mini database to resolve them on read-level
+#evidence instead of pooled percent identity. Only groups with 2+ candidate
+#species are realigned, so the common case costs nothing.
+realign: true
+
+#Alignment-score slack when deciding whether a read ties between two species.
+#0 means exact ties only. Raise it to treat near-ties as shared evidence.
+realign_score_tolerance: 0
+
+#Rank lineages are read from <database_dir>/identity_cache.json when present.
+#Build it once per database with:
+#  python build_db/make_identity_cache.py --database_dir <database_dir>
+#Without it every sample re-resolves an NCBI lineage per taxon, which takes
+#about a minute. Only the lineages are cached, not the competition groups, so
+#ani_cutoff, ani_linkage and taxonomy_rank can be changed without rebuilding it.
+
+#Directory for cached mini bowtie2 indexes. These depend only on the database,
+#not the sample, so they are reused across every sample in a run. Blank uses a
+#temporary directory and rebuilds each time.
+realign_index_cache: ""
+
+#Presence thresholds, applied to UNIQUE evidence after competition rather than
+#to total evidence before it.
+#Reads and distinct marker genes required to report a taxon. A taxon clearing
+#these at within-species identity is identified to species; one clearing them
+#only at lower identity is reported as a nearest-reference match, with the
+#identity its reads actually reached.
+min_unique_reads: 4
+min_unique_markers: 2
+
+#Keep every realignment intermediate under
+#<output_dir>/filtering/<sample>_realign_debug/: the reads extracted for each
+#competition group, the marker FASTA they were realigned against, the SAM, a
+#per-fragment table giving every number that went into each decision, and the
+#anchor levels and measured divergences. Off by default because the files are
+#large; turn it on when a call needs explaining.
+save_realignment_intermediates: false
+
+#The identity at which a read is taken to match its own species is ESTIMATED
+#per competition group, from that group's own reads. Reads from an organism
+#that is present sit at the top of the identity distribution, so a high
+#quantile of it locates the within-species level without having to model the
+#lower spillover modes. A fixed value assumes every library sits the same
+#distance from its reference, and that is not true: on one Entamoeba pair the
+#within-species mode was 97-98%, where a fixed 0.99 admitted 42 of 1115
+#fragments and left the other 96% to be placed by inference rather than
+#evidence.
+#
+#Which quantile is taken as the within-species level. 0.90 means a present
+#species must account for at least a tenth of a group's fragments to set it.
+anchor_quantile: 0.90
+
+#How far below the estimated level a fragment may sit and still count as
+#within-species, covering read-to-read variation. At ~100 bp reads this is
+#about two mismatches of tolerance.
+anchor_slack: 0.02
+
+#Renamed from 'anchor_identity', which used to be the threshold itself. An old
+#config carrying 'anchor_identity: 0.99' is ignored with a warning, because as a
+#floor that value would pin the threshold at the old fixed level and disable the
+#per-cluster estimate entirely.
+#Floor for the estimated threshold. Without it a group containing nothing but
+#spillover would estimate its way down to the spillover level and promote those
+#reads to anchors, which is the false positive the threshold exists to prevent.
+anchor_identity_floor: 0.97
+
+#Two species whose measured divergence falls below this cannot be distinguished
+#by their reads, so fragments between them are reported as undecidable rather
+#than assigned by guesswork. The separation between the two competing
+#predictions IS the measured divergence, so this is really "how similar may two
+#references be before their reads become interchangeable". Sequencing noise on a
+#single fragment is a few tenths of a point, so one point sits comfortably above
+#it. Raise it to be more conservative about splitting close relatives.
+min_separation: 0.01
+
+#MAPQ threshold for the main hits table. Applied as a separate step now, so the
+#pre-MAPQ BAM is retained for realignment.
+min_mapq: 10
+
 #list sample names here. fastqs must correspond to {samplename}{se_suffix} for SE reads or {samplename}{fwd_suffix} and {samplename}{rev_suffix} for PE
 #each sample name should be preceded by 2 spaces and followed by a colon character
 samples:

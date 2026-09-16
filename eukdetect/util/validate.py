@@ -86,18 +86,49 @@ def check_database(config: dict) -> None:
 		raise ValueError(
 			f"Missing database files in {db_dir}:\n  " + "\n  ".join(missing)
 		)
-	
+
+
+	ani_path = config.get("ani_file") or str(db_dir / "ani.tsv")
+	if not Path(ani_path).exists():
+		raise ValueError(
+			f"ANI file not found: {ani_path}\n"
+			f"Expected three tab-separated columns with no header: "
+			f"genome_1, genome_2, ANI, where the genome IDs match column 3 of "
+			f"busco_taxid_genome_link.txt.\n"
+			f"Pass --ani-file to point somewhere other than "
+			f"{db_dir / 'ani.tsv'}."
+		)
+	elif Path(ani_path).stat().st_size == 0:
+		raise ValueError(f"ANI file is empty: {ani_path}")
+
+
+	ref_fasta = db_dir / f"{db_prefix}.fasta"
+	if not ref_fasta.exists():
+		raise ValueError(
+			f"Reference marker FASTA not found: {ref_fasta}\n"
+			f"RPKS needs this file's .fai index to compute each taxon's full "
+			f"marker length; it cannot use the alignment or a precomputed "
+			f"length file instead (see marker_lengths_from_reference in "
+			f"eukfrac_calc.py for why)."
+		)
+	fai_path = Path(str(ref_fasta) + ".fai")
+	if not fai_path.exists():
+		raise ValueError(
+			f"No .fai index for the reference FASTA: {fai_path}\n"
+			f"Build it once with:\n"
+			f"    samtools faidx {ref_fasta}\n"
+			f"Rebuild it after any change to {ref_fasta} (added, removed, or "
+			f"renamed sequences), or RPKS will silently use a stale length "
+			f"for whatever changed."
+		)
+	elif fai_path.stat().st_size == 0:
+		raise ValueError(f".fai index is empty: {fai_path}")
+
 	logger.debug(f"Database validated: {db_dir}")
 
 
 def _get_sample_paths(config: dict, sample: str, info) -> List[Path]:
-	"""Return the read file Path(s) for a sample.
 
-	When config["samples"] contains per-sample dicts with absolute paths
-	(set by ConfigBuilder for single-sample / --name invocations), those are
-	used directly.  Otherwise (TSV config-file mode where info may be None),
-	paths are reconstructed from fq_dir + sample_name + suffix.
-	"""
 	paired_end = config["paired_end"]
 	fq_dir = Path(config["fq_dir"])
 

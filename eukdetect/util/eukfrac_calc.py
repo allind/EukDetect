@@ -3,9 +3,19 @@ from ete3 import NCBITaxa
 import argparse
 import textwrap
 import sys
+import os
 import re
 from collections import defaultdict
 import logging
+
+try:
+	from . import ani_groups
+	from . import reassign_eval
+except ImportError:
+	# Invoked as a script by the workflow, so there is no package context
+	sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+	import ani_groups
+	import reassign_eval
 
 
 logging.basicConfig(
@@ -14,6 +24,115 @@ logging.basicConfig(
 	level=logging.INFO
 )
 logger = logging.getLogger(__name__)
+
+
+_BUSCO_RE = re.compile(r"-(\d+at\d+)-")
+
+
+def marker_busco_id(seq_name):
+	if "Collapse" in seq_name:
+		return "Collapsed"
+	m = _BUSCO_RE.search(seq_name)
+	return m.group(1) if m else "Unknown"
+
+
+def marker_lengths_from_reference(ref_fasta, seq_taxid, seq_genomes,
+								  species_primary_genomes):
+	fai_path = ref_fasta + ".fai"
+	if not os.path.exists(fai_path):
+		logger.error(
+			f"No .fai index found at {fai_path}. RPKS needs the full marker "
+			f"length per taxon from the reference itself, not from a "
+			f"precomputed file that can disagree with it or an observed-only "
+			f"sum that shrinks at low coverage. Build it with:\n"
+			f"    samtools faidx {ref_fasta}"
+		)
+		return {}, None
+
+	seq_len = {}
+	try:
+		with open(fai_path) as f:
+			for line in f:
+				parts = line.rstrip("\n").split("\t")
+				if len(parts) < 2:
+					continue
+				try:
+					seq_len[parts[0]] = int(parts[1])
+				except ValueError:
+					continue
+	except Exception as e:
+		logger.error(f"Could not read {fai_path}: {e}")
+		return {}, None
+
+	if not seq_len:
+		logger.error(f"{fai_path} is present but empty or unreadable.")
+		return {}, None
+
+
+	taxid_genome_seqs = defaultdict(lambda: defaultdict(list))
+	missing = 0
+	for seq, taxid in seq_taxid.items():
+		if seq not in seq_len:
+			missing += 1
+			continue
+		genome = seq_genomes.get(seq, "NA")
+		taxid_genome_seqs[taxid][genome].append(seq)
+
+	taxid_len = {}
+	fallback_taxa = 0
+	for taxid, genome_seqs in taxid_genome_seqs.items():
+		primaries = [g for g in species_primary_genomes.get(taxid, [])
+					 if g in genome_seqs]
+		if not primaries:
+
+			fallback_taxa += 1
+			taxid_len[taxid] = sum(seq_len[s] for seqs in genome_seqs.values()
+								   for s in seqs)
+			continue
+
+		total = 0
+		covered_buscos = set()
+		for genome in primaries:
+			for seq in genome_seqs[genome]:
+				total += seq_len[seq]
+				b = marker_busco_id(seq)
+				if b not in ("Collapsed", "Unknown"):
+					covered_buscos.add(b)
+
+		for genome, seqs in genome_seqs.items():
+			if genome in primaries:
+				continue
+			for seq in sorted(seqs):
+				b = marker_busco_id(seq)
+				if b in ("Collapsed", "Unknown"):
+					continue
+				if b in covered_buscos:
+					continue
+				total += seq_len[seq]
+				covered_buscos.add(b)
+
+		taxid_len[taxid] = total
+
+	if missing:
+		logger.warning(
+			f"{missing} markers in the taxid link file are absent from "
+			f"{fai_path}; their length is not counted toward any taxon's "
+			f"total. This usually means the .fai is stale relative to "
+			f"busco_taxid_genome_link.txt -- rebuild it after any database "
+			f"change with: samtools faidx {ref_fasta}"
+		)
+	if fallback_taxa:
+		logger.debug(
+			f"{fallback_taxa} taxa had no primary-genome selection to anchor "
+			f"on and fell back to summing every genome assigned to them."
+		)
+	logger.info(
+		f"Marker lengths for {len(taxid_len)} taxa summed from {fai_path} "
+		f"({len(seq_len)} sequences indexed, {missing} link-table markers "
+		f"not found there), using each taxon's primary genome as the "
+		f"baseline plus any orthologs unique to its other genomes."
+	)
+	return taxid_len, missing
 
 
 def main(argv):
@@ -43,6 +162,30 @@ def main(argv):
 	parser.add_argument("--primarytab", type=str, required=True, help="Table output of filtered hits")
 	parser.add_argument("--alltab", type=str, required=True, help="Table output of all hits")
 	parser.add_argument("--taxid_genelens", type=str, required=True, help="Cumulative gene length per taxid")
+	parser.add_argument("--reference_fasta", type=str, required=True,
+		help="Marker database FASTA (must have a .fai index alongside it: "
+			 "samtools faidx <fasta>). RPKS is normalized by each taxon's "
+			 "full marker complement summed from this index, rather than "
+			 "from a precomputed file or from what happened to draw reads "
+			 "this run.")
+	parser.add_argument("--read_identities", type=str, required=True,
+		help="Per-read identity table from read_identity.py, run on the same "
+			 "q10-filtered BAM. Every proposed reassignment is tested against "
+			 "these reads; there is no mode that skips this.")
+	parser.add_argument("--reassignment_report", type=str, required=True,
+		help="Where to write every reassignment decision and the numbers "
+			 "behind it. Always written.")
+	parser.add_argument("--ani_file", type=str, required=True,
+		help="Genome ANI table: genome_1<TAB>genome_2<TAB>ANI, no header. "
+			 "Species linked here are disambiguated against each other in "
+			 "addition to those sharing an NCBI genus.")
+	parser.add_argument("--ani_threshold", type=float, default=ani_groups.DEFAULT_ANI_THRESHOLD,
+		help=argparse.SUPPRESS)
+	parser.add_argument("--anchor_alpha", type=float,
+		default=reassign_eval.DEFAULT_SPLIT_ALPHA,
+		help="Significance level for the sub-population test that can keep a "
+			 "secondary species otherwise flagged for reassignment "
+			 f"(default: {reassign_eval.DEFAULT_SPLIT_ALPHA})")
 	
 	files = parser.parse_args()
 	
@@ -88,6 +231,7 @@ def main(argv):
 	taxid_seqs = defaultdict(list)
 	seq_taxids = {}
 	seq_genomes = {}
+	genome_taxids = defaultdict(set)
 	taxid_genomes = defaultdict(set)
 	
 	try:
@@ -103,6 +247,13 @@ def main(argv):
 				taxid_seqs[taxid].append(seq)
 				seq_taxids[seq] = taxid
 				seq_genomes[seq] = genome_id
+				# Needed to map ANI pairs, which are keyed on genome, onto the
+				# taxids disambiguation works with.
+				if genome_id != "NA":
+					for g in genome_id.split(","):
+						g = g.strip()
+						if g:
+							genome_taxids[g].add(taxid)
 				if genome_id != "NA":
 					taxid_genomes[taxid].add(genome_id)
 		logger.info(f"Loaded {len(seq_taxids)} sequence-to-taxid mappings")
@@ -112,7 +263,12 @@ def main(argv):
 	except Exception as e:
 		logger.error(f"Error reading taxid link file: {e}")
 		sys.exit(1)
-	
+
+	#RPKS is normalized by each taxon's full marker complement, using its
+	#PRIMARY genome as the baseline (see marker_lengths_from_reference). That
+	#needs species_primary_genomes, which the genome-level disambiguation pass
+	#below computes; the call is placed after that pass, not here.
+
 	#Parse read counts file
 	taxid_counts = defaultdict(list)
 	genome_counts = defaultdict(list)
@@ -363,6 +519,16 @@ def main(argv):
 	
 	logger.info(f"Identified {len(genome_secondary_to_primary)} secondary genomes to reassign")
 	
+	reference_marker_length, _missing_fai_markers = marker_lengths_from_reference(
+		files.reference_fasta, seq_taxids, seq_genomes, species_primary_genomes
+	)
+	if not reference_marker_length:
+		logger.error(
+			"Cannot compute RPKS without per-taxon marker lengths from the "
+			"reference FASTA index. See the error above for how to fix it."
+		)
+		sys.exit(1)
+	
 	#Calculate genome-specific marker lengths for each taxid based on primary genomes
 	taxid_primary_genome_length = {}
 	
@@ -549,13 +715,23 @@ def main(argv):
 		logger.error(f"Error reading inherited markers: {e}")
 		sys.exit(1)
 	
-	logger.info("Starting genus-level disambiguation.")
-	
+	logger.info("Starting genus and ANI disambiguation.")
+
+	ani_pairs, ani_stats = ani_groups.load_ani_pairs(files.ani_file, files.ani_threshold)
+	if not ani_pairs:
+		logger.warning(
+			"No usable ANI pairs; disambiguation falls back to NCBI genus "
+			"alone, which cannot compare species across genera."
+		)
+	disambig_groups, group_stats = ani_groups.group_species(
+		genuses, genome_taxids, ani_pairs
+	)
+
 	primary = {}
 	secondary = {}
 	genus_secondary_to_primary = {}
 	
-	for genus, taxids in genuses.items():
+	for genus, taxids in disambig_groups.items():
 		if len(taxids) > 1:
 			reads = [taxon_coverage[taxid][1] for taxid in taxids]
 			bases = [taxon_coverage[taxid][2] for taxid in taxids]
@@ -663,14 +839,14 @@ def main(argv):
 	genus_to_primary_species = defaultdict(list)
 	genus_to_all_species = defaultdict(list)
 	
-	for genus, taxids in genuses.items():
+	for genus, taxids in disambig_groups.items():
 		genus_to_all_species[genus] = taxids
 		for taxid in taxids:
 			if taxid in filter_passing_taxids:
 				genus_to_primary_species[genus].append(taxid)
 	
 	#Extend secondary mapping to include all non-passing species in genus
-	for genus in genuses:
+	for genus in disambig_groups:
 		if genus in genus_to_primary_species and len(genus_to_primary_species[genus]) > 0:
 			primary_species_in_genus = genus_to_primary_species[genus]
 			all_species_in_genus = genus_to_all_species[genus]
@@ -679,8 +855,44 @@ def main(argv):
 				if species not in filter_passing_taxids:
 					if species not in genus_secondary_to_primary:
 						genus_secondary_to_primary[species] = primary_species_in_genus
-	
 
+	#Re-evaluate every proposed reassignment against per-read evidence.
+	#
+
+	reassign_records = []
+	by_taxid = reassign_eval.load_read_evidence(files.read_identities, seq_taxids)
+	if not by_taxid:
+		logger.error(
+			f"No usable per-read evidence in {files.read_identities}; cannot "
+			f"evaluate reassignment. Check that read_identity.py ran on the same "
+			f"filtered BAM this run is using."
+		)
+		sys.exit(1)
+
+	kept = []
+	for sec_taxid in sorted(genus_secondary_to_primary):
+		rec = reassign_eval.evaluate(
+			sec_taxid, genus_secondary_to_primary[sec_taxid], by_taxid,
+			anchor_alpha=files.anchor_alpha,
+		)
+		reassign_records.append(rec)
+		if rec["promote"]:
+			kept.append(sec_taxid)
+	for sec_taxid in kept:
+
+		del genus_secondary_to_primary[sec_taxid]
+		if sec_taxid not in filter_passing_taxids:
+			filter_passing_taxids.append(sec_taxid)
+	if reassign_records:
+		logger.info(
+			f"Read-level re-evaluation kept {len(kept)} of "
+			f"{len(reassign_records)} proposed reassignments as separate species."
+		)
+
+	#Always written: the decision cannot be reconstructed from the tables.
+	reassign_eval.write_report(files.reassignment_report, reassign_records)
+
+	logger.info("Writing full read table.")
 	logger.info("Writing full read table.")
 	
 	marker_sorted = sorted(taxon_coverage.keys(), reverse=True, 
@@ -896,13 +1108,19 @@ def main(argv):
 					node_total_reads[node.name] += read_count
 					node_total_marker_length[node.name] += marker_len
 					node_marker_sequences[node.name].append([marker_seq, marker_len, read_count])
-	
-	#Track primary genome marker lengths from database for RPKS calculation
-	#For species with multiple genomes, use only the detected primary genome
+
 	node_original_marker_length = {}
 	for tax in filter_passing_taxids:
-		#Use genome-specific length (based on primary genome detected). Defaults to species-level if genome-specific not available
-		node_original_marker_length[tax] = taxid_primary_genome_length.get(tax, original_taxon_stats.get(tax, [0]*9 + [0])[8])
+		ref_len = reference_marker_length.get(tax, 0)
+		if ref_len > 0:
+			node_original_marker_length[tax] = ref_len
+		else:
+			#No reference length for this taxon (a link-table/.fai mismatch,
+			#already warned about in marker_lengths_from_reference). Fall back to
+			#whatever observed length exists rather than reporting zero.
+			node_original_marker_length[tax] = node_total_marker_length.get(
+				tax, taxid_primary_genome_length.get(
+					tax, original_taxon_stats.get(tax, [0]*9 + [0])[8]))
 	
 	#Propagate markers and reads up the tree
 	node_observed_genomes = defaultdict(set)
@@ -1036,6 +1254,7 @@ def main(argv):
 	try:
 		with open(files.primarytab, 'w') as dest:
 			dest.write("Name\tRank\tLineage\tTaxid\tTotal_reads\tTotal_marker_length\t"
+					  "Observed_marker_length\t"
 					  "RPKS\tReads_aligned\tPID_aligned\tGenomes\t"
 					  "Reads_reassigned\tPID_reassigned\tReassigned_genomes\n")
 			
@@ -1060,7 +1279,14 @@ def main(argv):
 				reads_original = original_taxon_stats[tax][1]  #read count
 				pid_original = original_taxon_stats[tax][5]  #percent identity
 				
-				total_genome_marker_length = taxid_primary_genome_length.get(tax, original_taxon_stats[tax][8])
+				#Full marker complement from the reference index, same source
+				#as the tree-based RPKS below. This table computes its own
+				#RPKS separately from the tree-based one, so both have to use
+				#the same length or the two outputs disagree with each other.
+				total_genome_marker_length = reference_marker_length.get(
+					tax, 0) or node_total_marker_length.get(
+						tax, 0) or taxid_primary_genome_length.get(
+							tax, original_taxon_stats[tax][8])
 				
 				#Combine genome-level and species-level reassignment details
 				genome_reassigned_reads = genome_reassignment_details[tax]['reassigned_reads']
@@ -1084,16 +1310,18 @@ def main(argv):
 				all_reassigned_genomes = sorted(list(genome_reassigned_genomes | species_reassigned_genomes))
 				reassigned_genome_str = ",".join(all_reassigned_genomes) if all_reassigned_genomes else "None"
 				
-				#Calculate RPKS using total reads with full genome marker length from database
+				#RPKS over the full reference-derived marker length
 				total_reads_all = reads_original + total_reassigned_reads
 				rpks = round(total_reads_all / (total_genome_marker_length / 1000), 4) if total_genome_marker_length > 0 else 0.0
 				
 				#Get genomes detected for this taxid
 				genomes = sorted(list(node_observed_genomes.get(tax, set())))
 				genome_str = ",".join(genomes) if genomes else "NA"
+				observed_len = int(node_total_marker_length.get(tax, 0))
 				
 				dest.write(f"{name}\t{rank}\t{lin}\t{tax}\t"
-						  f"{round(total_reads_all, 2)}\t{int(total_genome_marker_length)}\t{rpks}\t"
+						  f"{round(total_reads_all, 2)}\t{int(total_genome_marker_length)}\t"
+						  f"{observed_len}\t{rpks}\t"
 						  f"{round(reads_original, 2)}\t{pid_original}%\t{genome_str}\t"
 						  f"{total_reassigned_reads}\t{reassigned_pid}%\t{reassigned_genome_str}\n")
 		

@@ -2,6 +2,7 @@ import os as _os
 _EUKDETECT_DIR    = config["eukdetect_dir"]
 _BAM_TO_PID       = _os.path.join(_EUKDETECT_DIR, "util", "bam_to_pid.py")
 _EUKFRAC_CALC     = _os.path.join(_EUKDETECT_DIR, "util", "eukfrac_calc.py")
+_READ_IDENTITY    = _os.path.join(_EUKDETECT_DIR, "util", "read_identity.py")
 _COMPLEXITY_FILTER = _os.path.join(_EUKDETECT_DIR, "util", "complexity_filter.py")
 
 #Target rules
@@ -165,6 +166,19 @@ rule countreads:
 		script = _BAM_TO_PID
 	shell:
 		"python {params.script} {input.bam} {input.ref} > {output.counts}"
+#Per-read identity
+
+rule read_identity:
+	input:
+		bam = config["output_dir"] + "/filtering/{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam"
+	output:
+		table = config["output_dir"] + "/filtering/{sample}_read_identities.txt"
+	params:
+		script = _READ_IDENTITY
+	shell:
+		"python {params.script} --bam {input.bam} --out {output.table}"
+
+
 #taxonomy
 
 rule taxonomize:
@@ -173,17 +187,29 @@ rule taxonomize:
 		taxid_link        = config["database_dir"] + "/busco_taxid_genome_link.txt",
 		inherited_markers = config["database_dir"] + "/specific_and_inherited_markers_per_taxid.txt",
 		taxdb             = config["database_dir"] + "/taxa.sqlite",
-		genelens          = config["database_dir"] + "/taxid_and_genome_cumulativelength.txt"
+		genelens          = config["database_dir"] + "/taxid_and_genome_cumulativelength.txt",
+		ani               = config.get("ani_file") or (config["database_dir"] + "/ani.tsv"),
+		readids           = config["output_dir"] + "/filtering/{sample}_read_identities.txt",
+		ref               = config["database_dir"] + "/" + config["database_prefix"] + ".fasta"
 	output:
 		allhits         = config["output_dir"] + "/filtering/{sample}_all_hits_table.txt",
 		primary_hits    = config["output_dir"] + "/{sample}_filtered_hits_table.txt",
-		primary_eukfrac = config["output_dir"] + "/{sample}_filtered_hits_eukfrac.txt"
+		primary_eukfrac = config["output_dir"] + "/{sample}_filtered_hits_eukfrac.txt",
+		reassign_report = config["output_dir"] + "/filtering/{sample}_reassignment_report.txt"
 	params:
-		script = _EUKFRAC_CALC
+		script = _EUKFRAC_CALC,
+		ani_threshold = config.get("ani_threshold", 80.0),
+		anchor_alpha = config.get("anchor_alpha", 0.01)
 	shell:
 		"""
 		python {params.script} \\
 			--dbfile            {input.taxdb} \\
+			--ani_file          {input.ani} \\
+			--read_identities   {input.readids} \\
+			--reassignment_report {output.reassign_report} \\
+			--ani_threshold     {params.ani_threshold} \\
+			--anchor_alpha      {params.anchor_alpha} \\
+			--reference_fasta   {input.ref} \\
 			--taxid_link        {input.taxid_link} \\
 			--inherited_markers {input.inherited_markers} \\
 			--taxid_genelens    {input.genelens} \\
