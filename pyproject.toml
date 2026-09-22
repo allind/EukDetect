@@ -37,5 +37,5 @@ eukdetect-normalize = "eukdetect.util.normalize_rpks:main"
 where = ["."]
 
 [tool.setuptools.package-data]
-"eukdetect.rules" = ["*.rules", "*.yaml"]
+"eukdetect.rules" = ["*.rules"]
 "eukdetect.envs" = ["*.yml"]

@@ -74,7 +74,12 @@ def bootstrap_split_pvalue(sec, pri, n_boot=1000, rng=None):
 	if n < 4 or len(pri) < n * _MIN_POOL_RATIO:
 		return None, obs
 
-	rng = rng or random
+	if rng is None:
+		# Seeded from the call's own data rather than global random state, so
+		# the same secondary/primary comparison gives the same p-value on
+		# every run regardless of what else has drawn from `random` first.
+		seed = hash((tuple(sec_ids), tuple(i for i, _ in pri)))
+		rng = random.Random(seed)
 	pri_by_busco = defaultdict(list)
 	for ident, marker in pri:
 		pri_by_busco[marker_busco(marker)].append(ident)

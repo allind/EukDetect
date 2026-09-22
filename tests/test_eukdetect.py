@@ -69,6 +69,9 @@ def test_database(tmp_path):
 	(db_dir / "specific_and_inherited_markers_per_taxid.txt").touch()
 	(db_dir / "busco_taxid_genome_link.txt").touch()
 	(db_dir / "taxid_and_genome_cumulativelength.txt").touch()
+	(db_dir / "ani.tsv").write_text("genome_a\tgenome_b\t88.5\n")
+	(db_dir / f"{prefix}.fasta").write_text(">seq1\nACGT\n>seq2\nACGTACGT\n")
+	(db_dir / f"{prefix}.fasta.fai").write_text("seq1\t4\t6\t4\t5\nseq2\t8\t16\t8\t9\n")
 	
 	return {
 		'dir': str(db_dir),

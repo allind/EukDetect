@@ -232,7 +232,6 @@ def main(argv):
 	seq_taxids = {}
 	seq_genomes = {}
 	genome_taxids = defaultdict(set)
-	taxid_genomes = defaultdict(set)
 	
 	try:
 		with open(files.taxid_link) as f:
@@ -254,8 +253,6 @@ def main(argv):
 						g = g.strip()
 						if g:
 							genome_taxids[g].add(taxid)
-				if genome_id != "NA":
-					taxid_genomes[taxid].add(genome_id)
 		logger.info(f"Loaded {len(seq_taxids)} sequence-to-taxid mappings")
 	except FileNotFoundError:
 		logger.error(f"Taxid link file not found: {files.taxid_link}")
@@ -704,9 +701,7 @@ def main(argv):
 							if busco not in buscos:
 								buscos.append(busco)
 					
-					specific_count = len(parts[1].split(','))
-					sp_and_inherited_count = len(parts[2].split(','))
-					full_seq_taxids[taxid] = [buscos, specific_count, sp_and_inherited_count]
+					full_seq_taxids[taxid] = buscos
 		logger.info(f"Loaded inherited markers for {len(full_seq_taxids)} taxa")
 	except FileNotFoundError:
 		logger.error(f"Inherited markers file not found: {files.inherited_markers}")
@@ -717,13 +712,13 @@ def main(argv):
 	
 	logger.info("Starting genus and ANI disambiguation.")
 
-	ani_pairs, ani_stats = ani_groups.load_ani_pairs(files.ani_file, files.ani_threshold)
+	ani_pairs, _ = ani_groups.load_ani_pairs(files.ani_file, files.ani_threshold)
 	if not ani_pairs:
 		logger.warning(
 			"No usable ANI pairs; disambiguation falls back to NCBI genus "
 			"alone, which cannot compare species across genera."
 		)
-	disambig_groups, group_stats = ani_groups.group_species(
+	disambig_groups, _ = ani_groups.group_species(
 		genuses, genome_taxids, ani_pairs
 	)
 
@@ -767,7 +762,7 @@ def main(argv):
 					#Get primary's overall PID
 					pri_overall_pid = taxon_coverage[ptaxid][5]
 					
-					p_buscos = full_seq_taxids.get(ptaxid, [[], 0, 0])[0]
+					p_buscos = full_seq_taxids.get(ptaxid, [])
 					a_buscos = taxon_coverage[ataxid][7]
 					a_remain = [b for b in a_buscos if b in p_buscos]
 
@@ -893,7 +888,6 @@ def main(argv):
 	reassign_eval.write_report(files.reassignment_report, reassign_records)
 
 	logger.info("Writing full read table.")
-	logger.info("Writing full read table.")
 	
 	marker_sorted = sorted(taxon_coverage.keys(), reverse=True, 
 						  key=lambda x: taxon_coverage[x][3])
@@ -950,7 +944,6 @@ def main(argv):
 
 	logger.info("Starting species-level reassignment.")
 	
-	filtered_out_genomes = defaultdict(set)
 	species_reassignment_details = defaultdict(lambda: {
 		'reassigned_reads': 0,
 		'reassigned_correct_bases': 0,
@@ -966,7 +959,6 @@ def main(argv):
 		#Track genomes from secondary (filtered) taxids
 		if sec_taxid in taxon_observed_genomes:
 			for genome in taxon_observed_genomes[sec_taxid]:
-				filtered_out_genomes[sec_taxid].add(genome)
 				for pri_taxid in pri_taxids:
 					species_reassignment_details[pri_taxid]['reassigned_genomes'].add(genome)
 		
