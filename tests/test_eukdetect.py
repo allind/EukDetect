@@ -66,7 +66,6 @@ def test_database(tmp_path):
 	
 	# Additional required database files
 	(db_dir / "taxa.sqlite.traverse.pkl").touch()
-	(db_dir / "specific_and_inherited_markers_per_taxid.txt").touch()
 	(db_dir / "busco_taxid_genome_link.txt").touch()
 	(db_dir / "taxid_and_genome_cumulativelength.txt").touch()
 	(db_dir / "ani.tsv").write_text("genome_a\tgenome_b\t88.5\n")
@@ -592,3 +591,4 @@ class TestSnakemakeExecutor:
 if __name__ == "__main__":
 	# Allow running with: python test_eukdetect.py
 	pytest.main([__file__, "-v"])
+

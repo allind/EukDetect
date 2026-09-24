@@ -185,7 +185,6 @@ rule taxonomize:
 	input:
 		counts            = config["output_dir"] + "/filtering/{sample}_read_counts_and_mismatches.txt",
 		taxid_link        = config["database_dir"] + "/busco_taxid_genome_link.txt",
-		inherited_markers = config["database_dir"] + "/specific_and_inherited_markers_per_taxid.txt",
 		taxdb             = config["database_dir"] + "/taxa.sqlite",
 		genelens          = config["database_dir"] + "/taxid_and_genome_cumulativelength.txt",
 		ani               = config.get("ani_file") or (config["database_dir"] + "/ani.tsv"),
@@ -211,11 +210,11 @@ rule taxonomize:
 			--anchor_alpha      {params.anchor_alpha} \\
 			--reference_fasta   {input.ref} \\
 			--taxid_link        {input.taxid_link} \\
-			--inherited_markers {input.inherited_markers} \\
 			--taxid_genelens    {input.genelens} \\
 			--readcounts        {input.counts} \\
 			--primarytab        {output.primary_hits} \\
 			--eukfrac           {output.primary_eukfrac} \\
 			--alltab            {output.allhits}
 		"""
+
 

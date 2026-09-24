@@ -48,7 +48,6 @@ def check_database(config: dict) -> None:
 	required_files = [
 		"taxa.sqlite",
 		"taxa.sqlite.traverse.pkl",
-		"specific_and_inherited_markers_per_taxid.txt",
 		"busco_taxid_genome_link.txt",
 		"taxid_and_genome_cumulativelength.txt",
 	]
@@ -286,3 +285,4 @@ def check_alignment_inputs(config: dict) -> None:
 			"\n  ".join(missing) +
 			"\n\nRun alignment first with: eukdetect single --mode aln"
 		)
+

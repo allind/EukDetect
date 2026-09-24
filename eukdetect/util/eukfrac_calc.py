@@ -149,13 +149,12 @@ def main(argv):
 		description=textwrap.dedent("""\
 			Summarize and filter alignments by taxid with multi-genome support.
 			Uses read-based abundance with length normalization for universal markers.
-			Required arguments are --dbfile, --inherited_markers, --taxid_link, 
+			Required arguments are --dbfile, --taxid_link, 
 			--readcounts, --primarytab, --eukfrac, --alltab, --taxid_genelens
 		"""),
 		formatter_class = argparse.RawDescriptionHelpFormatter
 	)
 	parser.add_argument("--dbfile", type=str, required=True, help="Eukdetect database folder")
-	parser.add_argument("--inherited_markers", type=str, required=True, help="Inherited markers file")
 	parser.add_argument("--taxid_link", type=str, required=True, help="BUSCO to taxid to genome link file (3 columns)")
 	parser.add_argument("--readcounts", type=str, required=True, help="Read counts and mismatches file")
 	parser.add_argument("--eukfrac", type=str, required=True, help="Eukaryotic abundance & fraction output file")
@@ -229,6 +228,7 @@ def main(argv):
 	
 	#Parse taxid_link file (busco, taxid, genome_id)
 	taxid_seqs = defaultdict(list)
+	full_seq_taxids = defaultdict(list)
 	seq_taxids = {}
 	seq_genomes = {}
 	genome_taxids = defaultdict(set)
@@ -246,6 +246,11 @@ def main(argv):
 				taxid_seqs[taxid].append(seq)
 				seq_taxids[seq] = taxid
 				seq_genomes[seq] = genome_id
+				busco_match = re.findall(r'-\d+at\d+-', seq)
+				if busco_match:
+					busco = busco_match[0].strip('-')
+					if busco not in full_seq_taxids[taxid]:
+						full_seq_taxids[taxid].append(busco)
 				# Needed to map ANI pairs, which are keyed on genome, onto the
 				# taxids disambiguation works with.
 				if genome_id != "NA":
@@ -683,33 +688,6 @@ def main(argv):
 		sys.exit(1)
 	
 
-	logger.info("Parsing markers.")
-	full_seq_taxids = {}
-	try:
-		with open(files.inherited_markers) as f:
-			for line in f:
-				parts = line.strip().split('\t')
-				if len(parts) < 3:
-					continue
-				taxid = parts[0]
-				if taxid in full_taxid_lineage:
-					buscos = []
-					for seq in parts[1].split(','):
-						busco_match = re.findall(r'-\d+at\d+-', seq)
-						if busco_match:
-							busco = busco_match[0].strip('-')
-							if busco not in buscos:
-								buscos.append(busco)
-					
-					full_seq_taxids[taxid] = buscos
-		logger.info(f"Loaded inherited markers for {len(full_seq_taxids)} taxa")
-	except FileNotFoundError:
-		logger.error(f"Inherited markers file not found: {files.inherited_markers}")
-		sys.exit(1)
-	except Exception as e:
-		logger.error(f"Error reading inherited markers: {e}")
-		sys.exit(1)
-	
 	logger.info("Starting genus and ANI disambiguation.")
 
 	ani_pairs, _ = ani_groups.load_ani_pairs(files.ani_file, files.ani_threshold)
@@ -762,7 +740,7 @@ def main(argv):
 					#Get primary's overall PID
 					pri_overall_pid = taxon_coverage[ptaxid][5]
 					
-					p_buscos = full_seq_taxids.get(ptaxid, [])
+					p_buscos = full_seq_taxids.get(ptaxid, [])  # from taxid_link, in memory
 					a_buscos = taxon_coverage[ataxid][7]
 					a_remain = [b for b in a_buscos if b in p_buscos]
 
@@ -1368,3 +1346,4 @@ def main(argv):
 
 if __name__ == "__main__":
 	main(sys.argv)
+
