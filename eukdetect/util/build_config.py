@@ -20,7 +20,7 @@ def _common_prefix(a: str, b: str) -> str:
 
 class ConfigBuilder:
 
-	def __init__(self, samples: Dict[str,dict], output_dir: str, database_dir: str, database_prefix: str = "eukdb_clust97", paired_end: bool = True, readlen: Optional[int] = None, bowtie2_cores: int = 1, ani_file: Optional[str] = None, ani_threshold: Optional[float] = None, anchor_alpha: Optional[float] = None):
+	def __init__(self, samples: Dict[str,dict], output_dir: str, database_dir: str, database_prefix: str = "eukdb", paired_end: bool = True, readlen: Optional[int] = None, bowtie2_cores: int = 1, ani_file: Optional[str] = None, ani_threshold: Optional[float] = None):
 		self.samples = samples
 		self.output_dir = output_dir
 		self.database_dir = database_dir
@@ -32,7 +32,6 @@ class ConfigBuilder:
 		# Left out of the config when unset so the workflow default applies,
 		# rather than writing the default down in a second place.
 		self.ani_threshold = ani_threshold
-		self.anchor_alpha = anchor_alpha
 
 	def build(self) -> dict:
 
@@ -68,8 +67,6 @@ class ConfigBuilder:
 			"ani_file": self.ani_file,
 			**({"ani_threshold": self.ani_threshold}
 			   if self.ani_threshold is not None else {}),
-			**({"anchor_alpha": self.anchor_alpha}
-			   if self.anchor_alpha is not None else {}),
 		}
 
 		return config

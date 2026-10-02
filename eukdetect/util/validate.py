@@ -1,6 +1,6 @@
 from Bio import SeqIO
 from pathlib import Path
-from typing import List, Tuple
+from typing import List
 
 import logging
 import os
@@ -228,7 +228,7 @@ def check_alignment_outputs(config: dict, force: bool) -> None:
 	
 	if existing and not force:
 		raise ValueError(
-			f"Alignment output files already exist. Use --force to overwrite:\n  " +
+			"Alignment output files already exist. Use --force to overwrite:\n  " +
 			"\n  ".join(existing)
 		)
 	
@@ -248,6 +248,8 @@ def check_filter_outputs(config: dict, force: bool) -> None:
 			output_dir / "filtering" / f"{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam",
 			output_dir / "filtering" / f"{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam.bai",
 			output_dir / "filtering" / f"{sample}_read_counts_and_mismatches.txt",
+			output_dir / "filtering" / f"{sample}_read_identities.txt",
+			output_dir / "filtering" / f"{sample}_reassignment_report.txt",
 			output_dir / "filtering" / f"{sample}_all_hits_table.txt",
 			output_dir / f"{sample}_filtered_hits_table.txt",
 			output_dir / f"{sample}_filtered_hits_eukfrac.txt",
@@ -259,7 +261,7 @@ def check_filter_outputs(config: dict, force: bool) -> None:
 	
 	if existing and not force:
 		raise ValueError(
-			f"Filter output files already exist. Use --force to overwrite:\n  " +
+			"Filter output files already exist. Use --force to overwrite:\n  " +
 			"\n  ".join(existing[:5]) + (f"\n  and {len(existing)-5} more" if len(existing) > 5 else "")
 		)
 	
@@ -281,7 +283,7 @@ def check_alignment_inputs(config: dict) -> None:
 	
 	if missing:
 		raise ValueError(
-			f"Alignment files required for filter mode not found:\n  " +
+			"Alignment files required for filter mode not found:\n  " +
 			"\n  ".join(missing) +
 			"\n\nRun alignment first with: eukdetect single --mode aln"
 		)

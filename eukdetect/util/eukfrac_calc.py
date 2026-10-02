@@ -180,13 +180,11 @@ def main(argv):
 			 "addition to those sharing an NCBI genus.")
 	parser.add_argument("--ani_threshold", type=float, default=ani_groups.DEFAULT_ANI_THRESHOLD,
 		help=argparse.SUPPRESS)
-	parser.add_argument("--anchor_alpha", type=float,
-		default=reassign_eval.DEFAULT_SPLIT_ALPHA,
-		help="Significance level for the sub-population test that can keep a "
-			 "secondary species otherwise flagged for reassignment "
-			 f"(default: {reassign_eval.DEFAULT_SPLIT_ALPHA})")
-	
+
 	files = parser.parse_args()
+
+	#Fixed, not a command-line option: see DEFAULT_SPLIT_ALPHA in reassign_eval.py.
+	logger.info(reassign_eval.describe_anchor_override())
 	
 	try:
 		ncbi = NCBITaxa(files.dbfile)
@@ -521,7 +519,7 @@ def main(argv):
 	
 	logger.info(f"Identified {len(genome_secondary_to_primary)} secondary genomes to reassign")
 	
-	reference_marker_length, _missing_fai_markers = marker_lengths_from_reference(
+	reference_marker_length, _ = marker_lengths_from_reference(
 		files.reference_fasta, seq_taxids, seq_genomes, species_primary_genomes
 	)
 	if not reference_marker_length:
@@ -673,21 +671,6 @@ def main(argv):
 		taxon_coverage[tax] = [mc, counts, total_bases, marker_percentage, overall_coverage, 
 							   percent_identity, subj_len, buscos, taxid_len, total_markers]
 
-	logger.info("Building taxonomic tree.")
-	
-	try:
-		tree = ncbi.get_topology(seen_taxids)
-		tree_root = tree.get_tree_root().name
-		lineage = ncbi.get_lineage(tree_root)
-		tree_taxids = seen_taxids + lineage
-		full_tree = ncbi.get_topology(tree_taxids, intermediate_nodes=True)
-		full_taxid_lineage = [node.name for node in full_tree.traverse()]
-		logger.info(f"Built tree with {len(full_taxid_lineage)} nodes")
-	except Exception as e:
-		logger.error(f"Error building taxonomic tree: {e}")
-		sys.exit(1)
-	
-
 	logger.info("Starting genus and ANI disambiguation.")
 
 	ani_pairs, _ = ani_groups.load_ani_pairs(files.ani_file, files.ani_threshold)
@@ -701,7 +684,7 @@ def main(argv):
 	)
 
 	primary = {}
-	secondary = {}
+	n_secondary = 0
 	genus_secondary_to_primary = {}
 	
 	for genus, taxids in disambig_groups.items():
@@ -781,7 +764,7 @@ def main(argv):
 									responsible_primaries.append(ptaxid)
 				
 				if is_secondary:
-					secondary[ataxid] = taxon_coverage[ataxid][0:5] + [responsible_primaries]
+					n_secondary += 1
 					genus_secondary_to_primary[ataxid] = responsible_primaries
 				else:
 					primary[ataxid] = taxon_coverage[ataxid][0:5]
@@ -794,7 +777,7 @@ def main(argv):
 		if t not in primary:
 			primary[t] = taxon_coverage[t][0:5]
 	
-	logger.info(f"Genus-level: {len(primary)} primary taxa, {len(secondary)} secondary taxa")
+	logger.info(f"Genus-level: {len(primary)} primary taxa, {n_secondary} secondary taxa")
 
 	filter_passing_taxids = []
 	filter_failing_taxids = []
@@ -846,7 +829,7 @@ def main(argv):
 	for sec_taxid in sorted(genus_secondary_to_primary):
 		rec = reassign_eval.evaluate(
 			sec_taxid, genus_secondary_to_primary[sec_taxid], by_taxid,
-			anchor_alpha=files.anchor_alpha,
+			marker_lengths=reference_marker_length,
 		)
 		reassign_records.append(rec)
 		if rec["promote"]:
@@ -891,8 +874,15 @@ def main(argv):
 					except:
 						rank = "no rank"
 				
-				mc, counts, _, marker_percentage, overall_coverage, percent_identity, _, _, blen, _ = taxon_coverage[tax]
-				
+				mc, counts, _, _, overall_coverage, percent_identity, _, _, legacy_len, _ = taxon_coverage[tax]
+
+				#Same reference-derived length the primary table and RPKS use.
+				#The legacy precomputed file sums every marker of every assembly
+				#of a species, which over-counts any species with more than one
+				#genome in the database; falling back to it only when the
+				#reference index has nothing for this taxon.
+				blen = reference_marker_length.get(tax, 0) or legacy_len
+
 				genomes = sorted(list(taxon_observed_genomes.get(tax, set())))
 				genome_str = ",".join(genomes) if genomes else "NA"
 				
@@ -1041,12 +1031,10 @@ def main(argv):
 	
 	node_total_reads = defaultdict(float)
 	node_total_marker_length = defaultdict(float)
-	node_marker_sequences = defaultdict(list)
-	
+
 	#First pass: build lineages and collect data for all nodes in tree
 	for node in primary_tree.traverse():
 		try:
-			currname = list(ncbi.get_taxid_translator([node.name]).values())[0]
 			lineage_list = ncbi.get_lineage(node.name)
 			names = ncbi.get_taxid_translator(lineage_list)
 			ranks = ncbi.get_rank(lineage_list)
@@ -1071,13 +1059,8 @@ def main(argv):
 		if node.name in filter_passing_taxids:
 			if node.name in taxid_counts:
 				for seq_data in taxid_counts[node.name]:
-					marker_seq = seq_data[0]
-					marker_len = seq_data[4]
-					read_count = seq_data[1]
-					
-					node_total_reads[node.name] += read_count
-					node_total_marker_length[node.name] += marker_len
-					node_marker_sequences[node.name].append([marker_seq, marker_len, read_count])
+					node_total_reads[node.name] += seq_data[1]
+					node_total_marker_length[node.name] += seq_data[4]
 
 	node_original_marker_length = {}
 	for tax in filter_passing_taxids:
@@ -1117,11 +1100,7 @@ def main(argv):
 					if node.name not in node_original_marker_length:
 						node_original_marker_length[node.name] = 0
 					node_original_marker_length[node.name] += node_original_marker_length[child.name]
-				
-				#Add all marker sequences from direct children
-				if child.name in node_marker_sequences:
-					node_marker_sequences[node.name].extend(node_marker_sequences[child.name])
-	
+
 	# Remove taxonomic levels absent from some lineages to avoid
 	# reporting inconsistent rank coverage across taxa (e.g. no "family" for some fungi)
 	#Remove incomplete levels
@@ -1178,10 +1157,9 @@ def main(argv):
 			
 			total_reads = node_total_reads.get(tax, 0)
 			original_marker_length = node_original_marker_length.get(tax, 0)
-			num_sequences = len(node_marker_sequences.get(tax, []))
-			
-			relabs[tax] = [rpks, original_marker_length, rel_abundance, total_reads, num_sequences]
-	
+
+			relabs[tax] = [rpks, original_marker_length, rel_abundance, total_reads]
+
 	#For all higher levels, sum the relative abundances of their children
 	rank_order = [r for r in ordered_labels if r in relab_levels]
 	
@@ -1214,10 +1192,8 @@ def main(argv):
 				rpks = total_reads / (original_marker_length / 1000)
 			else:
 				rpks = 0.0
-			
-			num_sequences = len(node_marker_sequences.get(tax, []))
-			
-			relabs[tax] = [rpks, original_marker_length, rel_abundance, total_reads, num_sequences]
+
+			relabs[tax] = [rpks, original_marker_length, rel_abundance, total_reads]
 
 	logger.info("Writing primary table.")
 	
@@ -1245,7 +1221,6 @@ def main(argv):
 					continue
 				
 				#Get original alignment stats (before any reassignment)
-				mc_original = original_taxon_stats[tax][0]  #marker count
 				reads_original = original_taxon_stats[tax][1]  #read count
 				pid_original = original_taxon_stats[tax][5]  #percent identity
 				

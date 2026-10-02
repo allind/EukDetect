@@ -5,7 +5,6 @@ import argparse
 import sys
 import os
 from pathlib import Path
-from collections import defaultdict
 import logging
 
 # Set up logging

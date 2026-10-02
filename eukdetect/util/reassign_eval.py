@@ -24,8 +24,16 @@ DEFAULT_ABUNDANCE_SCALE = 1.5
 
 DEFAULT_ANCHOR_MARGIN = 1.5
 
-DEFAULT_SPLIT_N_BOOT = 500
-DEFAULT_SPLIT_ALPHA = 0.01
+# The split-gap bootstrap p-value is add-one smoothed, p = (ge + 1) / (n_boot + 1),
+# so the smallest value it can ever return is 1 / (N_BOOT + 1). With N_BOOT = 1000
+# that floor is 9.99e-4, which is ABOVE the alpha below -- so the sub-population
+# override cannot fire, by design. Species whose pooled identity falls far enough
+# below their primary are reassigned unconditionally; the equal-abundance case that
+# keeps genuine co-present congeners apart is handled by the abundance-scaled
+# required_gap in evaluate(), not by this test. To re-enable the override, raise
+# N_BOOT above 1/ALPHA (e.g. 100000 for 1e-4) -- it will change species calls.
+DEFAULT_SPLIT_N_BOOT = 1000
+DEFAULT_SPLIT_ALPHA = 0.0001
 
 
 BUSCO_RE = re.compile(r"-(\d+at\d+)-")
@@ -45,15 +53,19 @@ def _median(values):
 	return v[n // 2] if n % 2 else (v[n // 2 - 1] + v[n // 2]) / 2.0
 
 
-def _mad(values):
-	"""Median absolute deviation: spread unmoved by a handful of outliers."""
-	med = _median(values)
-	if med is None:
-		return 0.0
-	return _median([abs(v - med) for v in values]) or 0.0
-
-
 _MIN_POOL_RATIO = 1
+
+
+def _abundance_ratio(secondary, primaries, n_sec, n_pri, marker_lengths):
+	# Reads per base of marker, not raw reads: a database genome that carries
+	# fewer markers collects fewer reads at the same coverage, which would
+	# otherwise make a real species look scarcer than it is.
+	if marker_lengths:
+		sec_len = marker_lengths.get(secondary, 0)
+		pri_len = sum(marker_lengths.get(p, 0) for p in primaries)
+		if sec_len > 0 and pri_len > 0 and n_pri > 0:
+			return (n_sec / sec_len) / (n_pri / pri_len)
+	return n_sec / n_pri if n_pri else 0.0
 
 
 def split_gap(values):
@@ -66,7 +78,7 @@ def split_gap(values):
 	return _median(v[n - mid:]) - _median(v[:mid])
 
 
-def bootstrap_split_pvalue(sec, pri, n_boot=1000, rng=None):
+def bootstrap_split_pvalue(sec, pri, n_boot=DEFAULT_SPLIT_N_BOOT, rng=None):
 
 	sec_ids = [i for i, _ in sec]
 	obs = split_gap(sec_ids)
@@ -140,6 +152,29 @@ def mwu_less_pvalue(x, y):
 	return 0.5 * (1 + math.erf(z / math.sqrt(2)))
 
 
+def describe_anchor_override(alpha=DEFAULT_SPLIT_ALPHA, n_boot=DEFAULT_SPLIT_N_BOOT):
+	"""One line for the log saying whether the sub-population override can fire.
+
+	The bootstrap p-value cannot go below 1 / (n_boot + 1), so an alpha at or
+	under that floor silently disables the override. Stating it every run means
+	the setting can never look like it is doing something it is not.
+	"""
+	floor = 1.0 / (n_boot + 1)
+	if alpha <= floor:
+		return (
+			f"Sub-population override is DISABLED: alpha={alpha:g} is at or below "
+			f"the smallest p-value {n_boot} bootstrap draws can produce "
+			f"({floor:.2e}). Secondary species are reassigned whenever pooled "
+			f"identity is significantly and materially below their primary; "
+			f"equal-abundance congeners are kept apart by the abundance-scaled "
+			f"gap requirement instead."
+		)
+	return (
+		f"Sub-population override is active at alpha={alpha:g} "
+		f"({n_boot} bootstrap draws, smallest reportable p={floor:.2e})."
+	)
+
+
 def load_read_evidence(path, seq_taxid):
 
 	by_taxid = defaultdict(list)
@@ -200,7 +235,7 @@ def evaluate(secondary, primaries, by_taxid,
 			 base_min_gap=DEFAULT_BASE_MIN_GAP,
 			 abundance_scale=DEFAULT_ABUNDANCE_SCALE,
 			 anchor_margin=DEFAULT_ANCHOR_MARGIN,
-			 anchor_alpha=DEFAULT_SPLIT_ALPHA):
+			 anchor_alpha=DEFAULT_SPLIT_ALPHA, marker_lengths=None):
 
 	sec = by_taxid.get(secondary, [])
 	sec_ids = [i for i, _ in sec]
@@ -255,7 +290,7 @@ def evaluate(secondary, primaries, by_taxid,
 	p = mwu_less_pvalue(sec_ids, pri_ids)
 	rec["p_value"] = p
 
-	ratio = len(sec_ids) / len(pri_ids) if pri_ids else 0.0
+	ratio = _abundance_ratio(secondary, primaries, len(sec_ids), len(pri_ids), marker_lengths)
 	required_gap = base_min_gap + abundance_scale * min(ratio, 1.0)
 	rec["abundance_ratio"] = ratio
 	rec["required_gap"] = required_gap
@@ -315,7 +350,8 @@ def evaluate(secondary, primaries, by_taxid,
 		rec["reason"] = (
 			f"reassigned: only {len(sec_ids)} reads, too few for the "
 			f"significance test to rule out a real difference "
-			f"(p={p:.2f}), and its {gap:.2f}-point gap from the primary is "
+			f"(p={'NA' if p is None else format(p, '.2f')}), and its "
+			f"{gap:.2f}-point gap from the primary is "
 			f"larger than the {small_n_max_gap} points tolerated at this "
 			f"sample size"
 		)

@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, List, Tuple
+from typing import Optional, List
 
 import logging
 import os
@@ -13,7 +13,6 @@ import re
 from ..util.execute import SnakemakeExecutor
 from ..util.build_config import ConfigBuilder
 from ..util.validate import validate_inputs
-from ..util.reassign_eval import DEFAULT_SPLIT_ALPHA
 
 logger = logging.getLogger(__name__)
 
@@ -74,19 +73,6 @@ def _add_ani_args(dbopt):
 		type=float,
 		default=None,
 		help=argparse.SUPPRESS
-	)
-
-
-def _add_reassignment_args(group):
-
-	group.add_argument(
-		"--anchor-alpha",
-		dest="anchor_alpha",
-		type=float,
-		default=None,
-		help=f"Significance level for the sub-population test that can keep a "
-			 f"secondary species otherwise flagged for reassignment "
-			 f"(default: {DEFAULT_SPLIT_ALPHA})"
 	)
 
 
@@ -159,9 +145,6 @@ def parseargs_single(parser):
 
 	_add_ani_args(dbopt)
 
-	reassign_grp = parser.add_argument_group("Reassignment")
-	_add_reassignment_args(reassign_grp)
-	
 	execs = parser.add_argument_group("Execution")
 	
 	execs.add_argument(
@@ -274,9 +257,6 @@ def parseargs_batch(parser):
 
 	_add_ani_args(dbopt)
 
-	reassign_grp = parser.add_argument_group("Reassignment")
-	_add_reassignment_args(reassign_grp)
-	
 	execs = parser.add_argument_group("Execution")
 	
 	execs.add_argument(
@@ -333,9 +313,9 @@ def execute(args):
 		else:  #batch - local execution only
 			bowtie2_cores = 1  #One thread per sample
 			snakemake_cores = args.cores  #Number of parallel samples
-			logger.info(f"Running in BATCH mode (local execution):")
+			logger.info("Running in BATCH mode (local execution):")
 			logger.info(f"  - {snakemake_cores} samples in parallel on this machine")
-			logger.info(f"  - 1 thread per bowtie2 instance")
+			logger.info("  - 1 thread per bowtie2 instance")
 			logger.info(f"  - Total cores used: {snakemake_cores}")
 
 		if hasattr(args, 'config') and args.config:
@@ -410,7 +390,6 @@ def execute(args):
 				ani_file=(args.ani_file or
 						  os.path.join(database, "ani.tsv")),
 				ani_threshold=args.ani_threshold,
-				anchor_alpha=args.anchor_alpha,
 				paired_end=paired_end,
 				readlen=args.readlen,
 				bowtie2_cores=bowtie2_cores,  #NEW
@@ -544,7 +523,7 @@ def _parse_samples(
 				if "reads2" in row and row["reads2"]:
 					samples[sample]["reads2"] = row["reads2"]
 	elif reads1:
-		logger.info(f"Parsing sample from command line input.")
+		logger.info("Parsing sample from command line input.")
 		#Process reads1 file
 		for idx, r1 in enumerate(reads1):
 			if sample_name and idx < len(sample_name) and sample_name[idx]:

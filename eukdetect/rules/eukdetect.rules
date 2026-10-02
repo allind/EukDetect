@@ -13,6 +13,8 @@ rule all:
 		expand("{output_dir}/filtering/{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam", sample=config["samples"], output_dir=config["output_dir"]),
 		expand("{output_dir}/filtering/{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam.bai", sample=config["samples"], output_dir=config["output_dir"]),
 		expand("{output_dir}/filtering/{sample}_read_counts_and_mismatches.txt", sample=config["samples"], output_dir=config["output_dir"]),
+		expand("{output_dir}/filtering/{sample}_read_identities.txt", sample=config["samples"], output_dir=config["output_dir"]),
+		expand("{output_dir}/filtering/{sample}_reassignment_report.txt", sample=config["samples"], output_dir=config["output_dir"]),
 		expand("{output_dir}/filtering/{sample}_all_hits_table.txt", sample=config["samples"], output_dir=config["output_dir"]),
 		expand("{output_dir}/{sample}_filtered_hits_table.txt", sample=config["samples"], output_dir=config["output_dir"]),
 		expand("{output_dir}/{sample}_filtered_hits_eukfrac.txt", sample=config["samples"], output_dir=config["output_dir"])
@@ -30,6 +32,8 @@ rule analyze:
 		expand("{output_dir}/filtering/{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam", sample=config["samples"], output_dir=config["output_dir"]),
 		expand("{output_dir}/filtering/{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam.bai", sample=config["samples"], output_dir=config["output_dir"]),
 		expand("{output_dir}/filtering/{sample}_read_counts_and_mismatches.txt", sample=config["samples"], output_dir=config["output_dir"]),
+		expand("{output_dir}/filtering/{sample}_read_identities.txt", sample=config["samples"], output_dir=config["output_dir"]),
+		expand("{output_dir}/filtering/{sample}_reassignment_report.txt", sample=config["samples"], output_dir=config["output_dir"]),
 		expand("{output_dir}/filtering/{sample}_all_hits_table.txt", sample=config["samples"], output_dir=config["output_dir"]),
 		expand("{output_dir}/{sample}_filtered_hits_table.txt", sample=config["samples"], output_dir=config["output_dir"]),
 		expand("{output_dir}/{sample}_filtered_hits_eukfrac.txt", sample=config["samples"], output_dir=config["output_dir"])
@@ -197,8 +201,7 @@ rule taxonomize:
 		reassign_report = config["output_dir"] + "/filtering/{sample}_reassignment_report.txt"
 	params:
 		script = _EUKFRAC_CALC,
-		ani_threshold = config.get("ani_threshold", 80.0),
-		anchor_alpha = config.get("anchor_alpha", 0.01)
+		ani_threshold = config.get("ani_threshold", 80.0)
 	shell:
 		"""
 		python {params.script} \\
@@ -207,7 +210,6 @@ rule taxonomize:
 			--read_identities   {input.readids} \\
 			--reassignment_report {output.reassign_report} \\
 			--ani_threshold     {params.ani_threshold} \\
-			--anchor_alpha      {params.anchor_alpha} \\
 			--reference_fasta   {input.ref} \\
 			--taxid_link        {input.taxid_link} \\
 			--taxid_genelens    {input.genelens} \\

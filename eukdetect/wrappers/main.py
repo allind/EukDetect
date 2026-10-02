@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import argparse
 import logging
 import sys
