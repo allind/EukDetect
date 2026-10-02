@@ -24,6 +24,7 @@ requirements:
     - setuptools >=61.0
   run:
     - python >=3.8
+    - legacy-cgi
     - biopython
     - pyyaml
     - snakemake-minimal >=8
