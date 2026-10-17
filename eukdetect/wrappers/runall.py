@@ -379,7 +379,21 @@ def execute(args):
 					)
 
 			#determine if paired end or single end reads
-			paired_end = any("reads2" in info for info in sample_dict.values())
+			with_mate = [s for s, info in sample_dict.items() if "reads2" in info]
+			without_mate = [s for s in sample_dict if s not in with_mate]
+			if with_mate and without_mate:
+				raise ValueError(
+					"Samples mix paired-end and single-end reads, and a run uses "
+					"one layout for every sample.\n"
+					f"  Paired-end ({len(with_mate)}): "
+					+ ", ".join(sorted(with_mate)[:5])
+					+ (" ..." if len(with_mate) > 5 else "")
+					+ f"\n  Single-end ({len(without_mate)}): "
+					+ ", ".join(sorted(without_mate)[:5])
+					+ (" ..." if len(without_mate) > 5 else "")
+					+ "\nRun them as two batches."
+				)
+			paired_end = bool(with_mate)
 
 			#create config dict
 			config_builder = ConfigBuilder(

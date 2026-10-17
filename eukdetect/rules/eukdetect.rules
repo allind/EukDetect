@@ -84,7 +84,7 @@ rule alncmd:
 					bam = os.path.join(output_dir, f"aln/{sample}_aln_q10_lenfilter.sorted.bam")
 					cmd = (
 						f"bowtie2 -p {cores} --end-to-end --very-sensitive"
-						f" --quiet --omit-sec-seq --no-discordant --no-unal"
+						f" --quiet --omit-sec-seq --no-unal"
 						f" -x {db} -U {fq} |"
 						f" perl -lane '$l = 0; $F[5] =~ s/(\\d+)[MX=DN]/$l+=$1/eg;"
 						f" print if $l > {minreadlen} or /^@/' |"
@@ -125,7 +125,7 @@ rule runaln:
 			samtools sort -@ {threads} -o {output.bam} -
 		else
 			bowtie2 -p {threads} --end-to-end --very-sensitive \\
-				--quiet --omit-sec-seq --no-discordant --no-unal \\
+				--quiet --omit-sec-seq --no-unal \\
 				-x {params.db} -U {input.r1} |
 			perl -lane '$l = 0; $F[5] =~ s/(\\d+)[MX=DN]/$l+=$1/eg; print if $l > {params.minreadlen} or /^@/' |
 			samtools view -q 10 -bS - |
@@ -142,9 +142,10 @@ rule complexity_and_dedup:
 	output:
 		bam = config["output_dir"] + "/filtering/{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam"
 	params:
-		script = _COMPLEXITY_FILTER
+		script = _COMPLEXITY_FILTER,
+		pairing = "--paired-end" if config["paired_end"] else "--single-end"
 	shell:
-		"python {params.script} {input.bam} {output.bam}"
+		"python {params.script} {input.bam} {output.bam} {params.pairing}"
 
 
 #Index
@@ -190,7 +191,6 @@ rule taxonomize:
 		counts            = config["output_dir"] + "/filtering/{sample}_read_counts_and_mismatches.txt",
 		taxid_link        = config["database_dir"] + "/busco_taxid_genome_link.txt",
 		taxdb             = config["database_dir"] + "/taxa.sqlite",
-		genelens          = config["database_dir"] + "/taxid_and_genome_cumulativelength.txt",
 		ani               = config.get("ani_file") or (config["database_dir"] + "/ani.tsv"),
 		readids           = config["output_dir"] + "/filtering/{sample}_read_identities.txt",
 		ref               = config["database_dir"] + "/" + config["database_prefix"] + ".fasta"
@@ -212,7 +212,6 @@ rule taxonomize:
 			--ani_threshold     {params.ani_threshold} \\
 			--reference_fasta   {input.ref} \\
 			--taxid_link        {input.taxid_link} \\
-			--taxid_genelens    {input.genelens} \\
 			--readcounts        {input.counts} \\
 			--primarytab        {output.primary_hits} \\
 			--eukfrac           {output.primary_eukfrac} \\

@@ -49,7 +49,6 @@ def check_database(config: dict) -> None:
 		"taxa.sqlite",
 		"taxa.sqlite.traverse.pkl",
 		"busco_taxid_genome_link.txt",
-		"taxid_and_genome_cumulativelength.txt",
 	]
 	
 	missing = []

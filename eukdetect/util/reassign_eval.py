@@ -1,39 +1,49 @@
 #!/usr/bin/env python
+"""Read-level re-evaluation of proposed species reassignments.
+
+Earlier stages of eukfrac_calc propose that a species is spillover from a
+competitor ("primary") and should have its reads folded into it. This module
+re-tests every such proposal against the per-read identities in the filtered
+BAM, and overturns the proposal when the evidence does not support it.
+
+The decision is two parts, both computed from per-read percent identity:
+
+  1. A one-sided Mann-Whitney U test asking whether the secondary's reads sit
+     stochastically lower than its primary's.
+  2. A minimum difference between the two medians, scaled by how abundant the
+     secondary is relative to its primary, measured in reads per base of marker
+     rather than raw reads.
+
+A secondary is reassigned only when both fire. A secondary with too few reads
+for the test to have power is reassigned if its median sits far enough below.
+Anything else is kept as a separate species.
+"""
 import logging
 import math
-import random
 import re
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
+#A secondary needs at least this much evidence to be judged on its reads at all.
+#Below either threshold the proposed reassignment stands unexamined.
 DEFAULT_MIN_READS = 4
 DEFAULT_MIN_MARKERS = 2
 
 DEFAULT_ALPHA = 0.05
 
-
+#Below this many reads the Mann-Whitney test has little power, so a large
+#median difference is taken as sufficient evidence on its own.
 DEFAULT_SMALL_N_THRESHOLD = 15
-
-
 DEFAULT_SMALL_N_MAX_GAP = 1.5
 
-
+#required_gap = base + scale * min(abundance_ratio, 1), in percentage points of
+#identity. The floor applies to a vanishingly rare secondary; the ceiling
+#(base + scale) to one as dense as its primary. Scaling with abundance is what
+#keeps genuinely co-present congeners apart: two species at similar depth need a
+#much larger identity difference before one is called spillover from the other.
 DEFAULT_BASE_MIN_GAP = 0.75
 DEFAULT_ABUNDANCE_SCALE = 1.5
-
-DEFAULT_ANCHOR_MARGIN = 1.5
-
-# The split-gap bootstrap p-value is add-one smoothed, p = (ge + 1) / (n_boot + 1),
-# so the smallest value it can ever return is 1 / (N_BOOT + 1). With N_BOOT = 1000
-# that floor is 9.99e-4, which is ABOVE the alpha below -- so the sub-population
-# override cannot fire, by design. Species whose pooled identity falls far enough
-# below their primary are reassigned unconditionally; the equal-abundance case that
-# keeps genuine co-present congeners apart is handled by the abundance-scaled
-# required_gap in evaluate(), not by this test. To re-enable the override, raise
-# N_BOOT above 1/ALPHA (e.g. 100000 for 1e-4) -- it will change species calls.
-DEFAULT_SPLIT_N_BOOT = 1000
-DEFAULT_SPLIT_ALPHA = 0.0001
 
 
 BUSCO_RE = re.compile(r"-(\d+at\d+)-")
@@ -53,9 +63,6 @@ def _median(values):
 	return v[n // 2] if n % 2 else (v[n // 2 - 1] + v[n // 2]) / 2.0
 
 
-_MIN_POOL_RATIO = 1
-
-
 def _abundance_ratio(secondary, primaries, n_sec, n_pri, marker_lengths):
 	# Reads per base of marker, not raw reads: a database genome that carries
 	# fewer markers collects fewer reads at the same coverage, which would
@@ -68,51 +75,10 @@ def _abundance_ratio(secondary, primaries, n_sec, n_pri, marker_lengths):
 	return n_sec / n_pri if n_pri else 0.0
 
 
-def split_gap(values):
-
-	v = sorted(values)
-	n = len(v)
-	if n < 4:
-		return 0.0
-	mid = n // 2
-	return _median(v[n - mid:]) - _median(v[:mid])
-
-
-def bootstrap_split_pvalue(sec, pri, n_boot=DEFAULT_SPLIT_N_BOOT, rng=None):
-
-	sec_ids = [i for i, _ in sec]
-	obs = split_gap(sec_ids)
-	n = len(sec_ids)
-	if n < 4 or len(pri) < n * _MIN_POOL_RATIO:
-		return None, obs
-
-	if rng is None:
-		# Seeded from the call's own data rather than global random state, so
-		# the same secondary/primary comparison gives the same p-value on
-		# every run regardless of what else has drawn from `random` first.
-		seed = hash((tuple(sec_ids), tuple(i for i, _ in pri)))
-		rng = random.Random(seed)
-	pri_by_busco = defaultdict(list)
-	for ident, marker in pri:
-		pri_by_busco[marker_busco(marker)].append(ident)
-	pri_pool_all = [i for i, _ in pri]
-	sec_buscos = [marker_busco(m) for _, m in sec]
-
-	ge = 0
-	for _ in range(n_boot):
-		sample = []
-		for busco in sec_buscos:
-
-			pool = pri_by_busco.get(busco) or pri_pool_all
-			sample.append(rng.choice(pool))
-		if split_gap(sample) >= obs:
-			ge += 1
-
-	return (ge + 1) / (n_boot + 1), obs
-
-
 def mwu_less_pvalue(x, y):
-
+	"""One-sided Mann-Whitney U, normal approximation with tie and continuity
+	correction. Returns P(x stochastically below y), or None when undefined
+	(an empty group, or every value tied)."""
 	n1, n2 = len(x), len(y)
 	if n1 == 0 or n2 == 0:
 		return None
@@ -152,26 +118,18 @@ def mwu_less_pvalue(x, y):
 	return 0.5 * (1 + math.erf(z / math.sqrt(2)))
 
 
-def describe_anchor_override(alpha=DEFAULT_SPLIT_ALPHA, n_boot=DEFAULT_SPLIT_N_BOOT):
-	"""One line for the log saying whether the sub-population override can fire.
-
-	The bootstrap p-value cannot go below 1 / (n_boot + 1), so an alpha at or
-	under that floor silently disables the override. Stating it every run means
-	the setting can never look like it is doing something it is not.
-	"""
-	floor = 1.0 / (n_boot + 1)
-	if alpha <= floor:
-		return (
-			f"Sub-population override is DISABLED: alpha={alpha:g} is at or below "
-			f"the smallest p-value {n_boot} bootstrap draws can produce "
-			f"({floor:.2e}). Secondary species are reassigned whenever pooled "
-			f"identity is significantly and materially below their primary; "
-			f"equal-abundance congeners are kept apart by the abundance-scaled "
-			f"gap requirement instead."
-		)
+def describe_parameters(alpha=DEFAULT_ALPHA, base_min_gap=DEFAULT_BASE_MIN_GAP,
+						abundance_scale=DEFAULT_ABUNDANCE_SCALE,
+						min_reads=DEFAULT_MIN_READS, min_markers=DEFAULT_MIN_MARKERS):
+	"""One line for the log recording the thresholds this run used, so a result
+	can be tied to its settings without reading the source."""
 	return (
-		f"Sub-population override is active at alpha={alpha:g} "
-		f"({n_boot} bootstrap draws, smallest reportable p={floor:.2e})."
+		f"Reassignment test: Mann-Whitney alpha={alpha:g}, median difference must "
+		f"reach {base_min_gap:g} + {abundance_scale:g} x min(abundance ratio, 1) "
+		f"points ({base_min_gap:g} for a vanishingly rare secondary, "
+		f"{base_min_gap + abundance_scale:g} at parity); abundance ratio is reads "
+		f"per base of marker; a secondary needs >={min_reads} reads on "
+		f">={min_markers} markers to be judged on its reads at all."
 	)
 
 
@@ -233,10 +191,11 @@ def evaluate(secondary, primaries, by_taxid,
 			 alpha=DEFAULT_ALPHA, small_n_threshold=DEFAULT_SMALL_N_THRESHOLD,
 			 small_n_max_gap=DEFAULT_SMALL_N_MAX_GAP,
 			 base_min_gap=DEFAULT_BASE_MIN_GAP,
-			 abundance_scale=DEFAULT_ABUNDANCE_SCALE,
-			 anchor_margin=DEFAULT_ANCHOR_MARGIN,
-			 anchor_alpha=DEFAULT_SPLIT_ALPHA, marker_lengths=None):
+			 abundance_scale=DEFAULT_ABUNDANCE_SCALE, marker_lengths=None):
+	"""Decide whether one proposed reassignment should stand.
 
+	`promote` True means the proposal is overturned and the secondary is kept as
+	a separate species; False means the reassignment stands."""
 	sec = by_taxid.get(secondary, [])
 	sec_ids = [i for i, _ in sec]
 	sec_buscos = {marker_busco(m) for _, m in sec}
@@ -253,11 +212,6 @@ def evaluate(secondary, primaries, by_taxid,
 		"gap": None,
 		"abundance_ratio": None,
 		"required_gap": None,
-		"anchor_reads": 0,
-		"anchor_markers": 0,
-		"anchor_split_gap": None,
-		"anchor_p_value": None,
-		"anchor_override": False,
 		"promote": False,
 		"reason": "",
 	}
@@ -271,9 +225,7 @@ def evaluate(secondary, primaries, by_taxid,
 		return rec
 
 	pri_ids = []
-	pri = []  # (identity, marker) pairs, kept for the stratified bootstrap below
 	for p in primaries:
-		pri.extend(by_taxid.get(p, []))
 		pri_ids.extend(i for i, _ in by_taxid.get(p, []))
 	rec["primary_reads"] = len(pri_ids)
 
@@ -295,57 +247,27 @@ def evaluate(secondary, primaries, by_taxid,
 	rec["abundance_ratio"] = ratio
 	rec["required_gap"] = required_gap
 
+	#Both conditions must hold: the difference is detectable AND large enough to
+	#mean something at this relative abundance.
 	if p is not None and p < alpha and gap >= required_gap:
-
-		anchor_p, split_obs = bootstrap_split_pvalue(sec, pri)
-		anchor_threshold = pri_med - anchor_margin
-		anchor = [(i, m) for i, m in sec if i >= anchor_threshold]
-		anchor_buscos = {marker_busco(m) for _, m in anchor}
-		rec["anchor_reads"] = len(anchor)
-		rec["anchor_markers"] = len(anchor_buscos)
-		rec["anchor_split_gap"] = split_obs
-		rec["anchor_p_value"] = anchor_p
-
-		enough_excess = anchor_p is not None and anchor_p < anchor_alpha
-
-		enough_evidence = len(anchor) >= min_reads and len(anchor_buscos) >= min_markers
-
-		if enough_excess and enough_evidence:
-			rec["promote"] = True
-			rec["anchor_override"] = True
-			rec["reason"] = (
-				f"kept: reads match it at {sec_med:.2f}% overall (which alone "
-				f"would be reassigned, {gap:.2f} points below the primary's "
-				f"{pri_med:.2f}%, Mann-Whitney p={p:.2e}), but its own reads split "
-				f"into a much wider high/low gap ({split_obs:.2f} points) than "
-				f"same-sized draws from the primary typically show (bootstrap "
-				f"p={anchor_p:.3f}), with {len(anchor)} reads across "
-				f"{len(anchor_buscos)} markers reaching within {anchor_margin} "
-				f"points of the primary's level -- consistent with a real presence "
-				f"diluted by spillover rather than pure spillover alone"
-			)
-			return rec
-
 		rec["reason"] = (
 			f"reassigned: reads match it at {sec_med:.2f}%, significantly "
 			f"below the primary's {pri_med:.2f}% by {gap:.2f} points, at or "
 			f"above the {required_gap:.2f}-point minimum required given it is "
 			f"{ratio:.1%} as abundant as its primary (Mann-Whitney p={p:.2e}, "
-			f"n={len(sec_ids)} vs {len(pri_ids)}; its own split-gap of "
-			f"{split_obs:.2f} points did not look bigger than ordinary noise "
-			f"produces for a real single population of this size, bootstrap "
-			f"p={'NA' if anchor_p is None else format(anchor_p, '.3f')})"
+			f"n={len(sec_ids)} vs {len(pri_ids)})"
 		)
 		return rec
-	if p is not None and p < alpha:
 
+	if p is not None and p < alpha:
 		logger.debug(
 			f"{secondary}: significant (p={p:.2e}) but gap {gap:.2f} is below "
 			f"the {required_gap:.2f}-point minimum required at {ratio:.1%} "
 			f"relative abundance; not reassigning on significance alone."
 		)
 
-
+	#Too few reads for the test to rule out a real difference, but the medians
+	#are far enough apart that spillover is the better explanation.
 	if len(sec_ids) < small_n_threshold and gap > small_n_max_gap:
 		rec["reason"] = (
 			f"reassigned: only {len(sec_ids)} reads, too few for the "
@@ -384,9 +306,7 @@ def write_report(path, records):
 			"Secondary_taxid\tPrimary_taxids\tPromoted\t"
 			"Secondary_reads\tSecondary_markers\tSecondary_median_identity\t"
 			"Primary_reads\tPrimary_median_identity\tGap\tMWU_p_value\t"
-			"Abundance_ratio\tRequired_gap\t"
-			"Anchor_override\tSplit_gap\tSplit_p_value\t"
-			"Anchor_reads\tAnchor_markers\tReason\n"
+			"Abundance_ratio\tRequired_gap\tReason\n"
 		)
 		for rec in records:
 			def fmt(v, spec=".3f"):
@@ -399,9 +319,6 @@ def write_report(path, records):
 				f"{rec['primary_reads']}\t{fmt(rec['primary_median_identity'])}\t"
 				f"{fmt(rec['gap'])}\t{fmt(rec['p_value'], '.3e')}\t"
 				f"{fmt(rec['abundance_ratio'], '.3f')}\t{fmt(rec['required_gap'])}\t"
-				f"{'yes' if rec['anchor_override'] else 'no'}\t"
-				f"{fmt(rec['anchor_split_gap'])}\t{fmt(rec['anchor_p_value'], '.3e')}\t"
-				f"{rec['anchor_reads']}\t{rec['anchor_markers']}\t"
 				f"{rec['reason']}\n"
 			)
 

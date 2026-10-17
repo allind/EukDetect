@@ -16,37 +16,67 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+_NO_READS_MARKERS = (
+	"zero aligned reads in sample",
+	"no aligned reads",
+	"empty read count file",
+)
+_NO_TAXA_MARKERS = ("no taxa passing filter",)
+
+
+def _no_reads_line(line):
+	low = line.lower()
+	return any(m in low for m in _NO_READS_MARKERS)
+
+
+def _no_taxa_line(line):
+	low = line.lower()
+	return any(m in low for m in _NO_TAXA_MARKERS)
+
+
 def parse_library_sizes(library_file):
 	library_sizes = {}
 	
 	try:
 		with open(library_file) as f:
-			# Skip header
-			f.readline()
-			
-			for line_num, line in enumerate(f, start=2):
-				parts = line.strip().split('\t')
-				
-				if len(parts) < 2:
-					logger.warning(f"Skipping line {line_num}: need at least 2 columns")
-					continue
-				
-				sample = parts[0]
-				
+			lines = f.readlines()
+
+		start = 1
+		if lines:
+			first = lines[0].strip().split('\t')
+			if len(first) >= 2:
 				try:
-					total_bases = float(parts[1])
+					float(first[1])
+					start = 0
 				except ValueError:
-					raise ValueError(
-						f"Error on line {line_num}: Column 2 must be a number (integer, float, or scientific notation).\n"
-						f"Sample: {sample}, Value: '{parts[1]}'"
-					)
-				
-				if total_bases <= 0:
-					logger.warning(f"Sample {sample} has invalid base count: {total_bases}")
-					continue
-				
-				library_sizes[sample] = total_bases
-		
+					pass
+
+		for line_num, line in enumerate(lines[start:], start=start + 1):
+			if not line.strip():
+				continue
+
+			parts = line.strip().split('\t')
+
+			if len(parts) < 2:
+				logger.warning(f"Skipping line {line_num}: need at least 2 columns")
+				continue
+
+			sample = parts[0]
+
+			try:
+				total_bases = float(parts[1])
+			except ValueError:
+				raise ValueError(
+					f"Error on line {line_num}: Column 2 must be a number (integer, float, or scientific notation).\n"
+					f"Sample: {sample}, Value: '{parts[1]}'"
+				)
+
+			if total_bases <= 0:
+				logger.warning(f"Sample {sample} has invalid base count: {total_bases}")
+				continue
+
+			library_sizes[sample] = total_bases
+
 		logger.info(f"Loaded library sizes for {len(library_sizes)} samples")
 		return library_sizes
 		
@@ -101,11 +131,11 @@ def parse_eukfrac_file(eukfrac_file, library_sizes):
 				logger.warning(f"  Empty file - no data for {sample_name}")
 				return sample_name, taxon_data
 			
-			if "Empty read count file" in first_line or "no aligned reads" in first_line.lower():
-				logger.warning(f"  No aligned reads in {sample_name}")
+			if _no_reads_line(first_line):
+				logger.warning(f"  Zero aligned reads in {sample_name}")
 				return sample_name, taxon_data
-			
-			if "No taxa passing filter" in first_line:
+
+			if _no_taxa_line(first_line):
 				logger.warning(f"  No taxa passed filters in {sample_name}")
 				return sample_name, taxon_data
 			
@@ -132,7 +162,7 @@ def parse_eukfrac_file(eukfrac_file, library_sizes):
 			
 			for line in f:
 				# Check if line is a message
-				if "Empty read count file" in line or "No taxa passing filter" in line:
+				if _no_reads_line(line) or _no_taxa_line(line):
 					logger.warning(f"  No data in {sample_name}: {line.strip()}")
 					return sample_name, taxon_data
 				
@@ -348,9 +378,10 @@ Output format:
 	)
 	
 	if not all_lineages:
-		logger.error("No taxa found across all samples")
-		sys.exit(1)
-	
+		logger.warning(
+			"No taxa found in any sample. Writing a table with no data rows."
+		)
+
 
 	write_unified_table(all_lineages, lineage_info, sample_data, sample_order, args.output)
 	

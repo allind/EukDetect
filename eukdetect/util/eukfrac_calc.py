@@ -28,6 +28,9 @@ logger = logging.getLogger(__name__)
 
 _BUSCO_RE = re.compile(r"-(\d+at\d+)-")
 
+NO_READS_MESSAGE = "Zero aligned reads in sample. Likely no eukaryotes present."
+NO_TAXA_MESSAGE = "No taxa passing filter requirements."
+
 
 def marker_busco_id(seq_name):
 	if "Collapse" in seq_name:
@@ -123,7 +126,7 @@ def marker_lengths_from_reference(ref_fasta, seq_taxid, seq_genomes,
 		)
 	if fallback_taxa:
 		logger.debug(
-			f"{fallback_taxa} taxa had no primary-genome selection to anchor "
+			f"{fallback_taxa} taxa had no primary-genome selection to measure from "
 			f"on and fell back to summing every genome assigned to them."
 		)
 	logger.info(
@@ -150,7 +153,7 @@ def main(argv):
 			Summarize and filter alignments by taxid with multi-genome support.
 			Uses read-based abundance with length normalization for universal markers.
 			Required arguments are --dbfile, --taxid_link, 
-			--readcounts, --primarytab, --eukfrac, --alltab, --taxid_genelens
+			--readcounts, --primarytab, --eukfrac, --alltab
 		"""),
 		formatter_class = argparse.RawDescriptionHelpFormatter
 	)
@@ -160,7 +163,6 @@ def main(argv):
 	parser.add_argument("--eukfrac", type=str, required=True, help="Eukaryotic abundance & fraction output file")
 	parser.add_argument("--primarytab", type=str, required=True, help="Table output of filtered hits")
 	parser.add_argument("--alltab", type=str, required=True, help="Table output of all hits")
-	parser.add_argument("--taxid_genelens", type=str, required=True, help="Cumulative gene length per taxid")
 	parser.add_argument("--reference_fasta", type=str, required=True,
 		help="Marker database FASTA (must have a .fai index alongside it: "
 			 "samtools faidx <fasta>). RPKS is normalized by each taxon's "
@@ -183,8 +185,8 @@ def main(argv):
 
 	files = parser.parse_args()
 
-	#Fixed, not a command-line option: see DEFAULT_SPLIT_ALPHA in reassign_eval.py.
-	logger.info(reassign_eval.describe_anchor_override())
+	#Fixed, not command-line options: see the DEFAULT_* constants in reassign_eval.py.
+	logger.info(reassign_eval.describe_parameters())
 	
 	try:
 		ncbi = NCBITaxa(files.dbfile)
@@ -193,36 +195,6 @@ def main(argv):
 		logger.error(f"Failed to load NCBI taxonomy database from {files.dbfile}: {e}")
 		sys.exit(1)
 	
-	#Load genome and taxid-specific gene lengths
-	#File format: identifier\tcumulative_length
-	#Identifier can be either genome name string or taxid
-
-	taxid_genelen = {}  #taxid -> length (species-level)
-	genome_genelen = {}  #genome_name -> length (genome-specific)
-	
-	try:
-		with open(files.taxid_genelens) as f:
-			for line in f:
-				parts = line.strip().split('\t')
-				if len(parts) >= 2:
-					identifier = parts[0]
-					length = int(parts[1])
-					
-					#Check if identifier is a taxid (numeric) or genome name (string)
-					if identifier.isdigit():
-						#Taxid
-						taxid_genelen[identifier] = length
-					else:
-						#Genome name
-						genome_genelen[identifier] = length
-					
-		logger.info(f"Loaded gene lengths for {len(taxid_genelen)} taxa and {len(genome_genelen)} genomes")
-	except FileNotFoundError:
-		logger.error(f"Taxid gene lengths file not found: {files.taxid_genelens}")
-		sys.exit(1)
-	except Exception as e:
-		logger.error(f"Error reading taxid gene lengths: {e}")
-		sys.exit(1)
 	
 	#Parse taxid_link file (busco, taxid, genome_id)
 	taxid_seqs = defaultdict(list)
@@ -349,7 +321,7 @@ def main(argv):
 	
 	#End if empty read count file
 	if counter == 0:
-		message = "Empty read count file. Likely no aligned reads in sample."
+		message = NO_READS_MESSAGE
 		logger.warning(message)
 		for outfile in [files.eukfrac, files.alltab, files.primarytab]:
 			try:
@@ -357,8 +329,9 @@ def main(argv):
 					f.write(message + '\n')
 			except Exception as e:
 				logger.error(f"Error writing to {outfile}: {e}")
+		reassign_eval.write_report(files.reassignment_report, [])
 		sys.exit()
-	
+
 	#Calculate initial stats for each taxid
 	logger.info("Calculating initial taxon coverage statistics.")
 	taxon_coverage = {}
@@ -386,16 +359,15 @@ def main(argv):
 		total_markers = len(taxid_seqs.get(tax, []))
 		marker_percentage = round(mc / total_markers * 100, 2) if total_markers > 0 else 0
 		
-		taxid_len = taxid_genelen.get(tax, 0)
 		seen_taxids.append(tax)
 		
 		taxon_coverage[tax] = [mc, counts, total_bases, marker_percentage, overall_coverage, 
-							   percent_identity, subj_len, buscos, taxid_len, total_markers]
+							   percent_identity, subj_len, buscos, total_markers]
 	
 	
 	#Store original (pre-reassignment) statistics for reporting
 	#Format: [mc, counts, total_bases, marker_percentage, overall_coverage, 
-	#		 percent_identity, subj_len, buscos, taxid_len, total_markers]
+	#		 percent_identity, subj_len, buscos, total_markers]
 	original_taxon_stats = {tax: list(stats) for tax, stats in taxon_coverage.items()}
 	
 	logger.info("Starting genome-level disambiguation.")
@@ -529,38 +501,6 @@ def main(argv):
 		)
 		sys.exit(1)
 	
-	#Calculate genome-specific marker lengths for each taxid based on primary genomes
-	taxid_primary_genome_length = {}
-	
-	for taxid, primary_genomes in species_primary_genomes.items():
-		total_length = 0
-		found_genomes = []
-		
-		for genome in primary_genomes:
-			#Look up genome-specific length by genome name
-			genome_length = genome_genelen.get(genome, 0)
-			
-			if genome_length > 0:
-				total_length += genome_length
-				found_genomes.append(genome)
-			else:
-				logger.warning(f"No genome-specific length found for {genome} (taxid {taxid})")
-		
-		if total_length > 0:
-			#Use genome-specific lengths
-			taxid_primary_genome_length[taxid] = total_length
-			logger.debug(f"Taxid {taxid}: Using {len(found_genomes)} genome(s) with total {total_length} bp")
-		else:
-			#Fallback to taxid-level length if no genome-specific lengths found
-			taxid_level_length = taxid_genelen.get(taxid, 0)
-			if taxid_level_length > 0:
-				taxid_primary_genome_length[taxid] = taxid_level_length
-				logger.debug(f"Taxid {taxid}: Falling back to taxid-level length {taxid_level_length} bp")
-			else:
-				logger.warning(f"No marker length found for taxid {taxid} (neither genome nor taxid level)")
-	
-	logger.info(f"Calculated genome-specific marker lengths for {len(taxid_primary_genome_length)} taxa")
-	
 	#Reassign reads from secondary genomes to primary genomes
 	genome_reassignment_details = defaultdict(lambda: {
 		'reassigned_reads': 0,
@@ -666,10 +606,8 @@ def main(argv):
 		total_markers = len(taxid_seqs.get(tax, []))
 		marker_percentage = round(mc / total_markers * 100, 2) if total_markers > 0 else 0
 		
-		taxid_len = taxid_genelen.get(tax, 0)
-		
 		taxon_coverage[tax] = [mc, counts, total_bases, marker_percentage, overall_coverage, 
-							   percent_identity, subj_len, buscos, taxid_len, total_markers]
+							   percent_identity, subj_len, buscos, total_markers]
 
 	logger.info("Starting genus and ANI disambiguation.")
 
@@ -874,14 +812,12 @@ def main(argv):
 					except:
 						rank = "no rank"
 				
-				mc, counts, _, _, overall_coverage, percent_identity, _, _, legacy_len, _ = taxon_coverage[tax]
+				mc, counts, _, _, overall_coverage, percent_identity, _, _, _ = taxon_coverage[tax]
 
-				#Same reference-derived length the primary table and RPKS use.
-				#The legacy precomputed file sums every marker of every assembly
-				#of a species, which over-counts any species with more than one
-				#genome in the database; falling back to it only when the
-				#reference index has nothing for this taxon.
-				blen = reference_marker_length.get(tax, 0) or legacy_len
+				#Same reference-derived length the primary table and RPKS use:
+				#each taxon's primary assembly plus only the orthologs unique to
+				#its other assemblies, summed from the .fai.
+				blen = reference_marker_length.get(tax, 0)
 
 				genomes = sorted(list(taxon_observed_genomes.get(tax, set())))
 				genome_str = ",".join(genomes) if genomes else "NA"
@@ -899,7 +835,7 @@ def main(argv):
 
 	#if nothing passed filter, exit
 	if len(filter_passing_taxids) == 0:
-		message = "No taxa passing filter requirements."
+		message = NO_TAXA_MESSAGE
 		logger.warning(message)
 		for outfile in [files.primarytab, files.eukfrac]:
 			try:
@@ -908,7 +844,7 @@ def main(argv):
 			except Exception as e:
 				logger.error(f"Error writing to {outfile}: {e}")
 		sys.exit()
-	
+
 
 	logger.info("Starting species-level reassignment.")
 	
@@ -1004,10 +940,8 @@ def main(argv):
 		total_markers = len(taxid_seqs.get(tax, []))
 		marker_percentage = round(mc / total_markers * 100, 2) if total_markers > 0 else 0
 		
-		taxid_len = taxid_genelen.get(tax, 0)
-		
 		taxon_coverage[tax] = [mc, counts, total_bases, marker_percentage, overall_coverage, 
-							   percent_identity, subj_len, buscos, taxid_len, total_markers]
+							   percent_identity, subj_len, buscos, total_markers]
 	
 
 	logger.info("Building tree for filtered taxa.")
@@ -1070,10 +1004,8 @@ def main(argv):
 		else:
 			#No reference length for this taxon (a link-table/.fai mismatch,
 			#already warned about in marker_lengths_from_reference). Fall back to
-			#whatever observed length exists rather than reporting zero.
-			node_original_marker_length[tax] = node_total_marker_length.get(
-				tax, taxid_primary_genome_length.get(
-					tax, original_taxon_stats.get(tax, [0]*9 + [0])[8]))
+			#the observed length rather than reporting zero.
+			node_original_marker_length[tax] = node_total_marker_length.get(tax, 0)
 	
 	#Propagate markers and reads up the tree
 	node_observed_genomes = defaultdict(set)
@@ -1229,9 +1161,7 @@ def main(argv):
 				#RPKS separately from the tree-based one, so both have to use
 				#the same length or the two outputs disagree with each other.
 				total_genome_marker_length = reference_marker_length.get(
-					tax, 0) or node_total_marker_length.get(
-						tax, 0) or taxid_primary_genome_length.get(
-							tax, original_taxon_stats[tax][8])
+					tax, 0) or node_total_marker_length.get(tax, 0)
 				
 				#Combine genome-level and species-level reassignment details
 				genome_reassigned_reads = genome_reassignment_details[tax]['reassigned_reads']

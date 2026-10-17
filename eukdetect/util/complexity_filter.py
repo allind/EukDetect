@@ -10,7 +10,7 @@
 #After complexity filtering, PCR duplicates are removed using pysam's read-name-based
 
 
-import sys
+import argparse
 import os
 import logging
 import pysam
@@ -60,17 +60,47 @@ def make_dup_key_single(read: pysam.AlignedSegment):
 	return (read.reference_id, read.reference_start, read.is_reverse)
 
 
-def filter_bam(input_bam: str, output_bam: str) -> None:
+def filter_bam(input_bam: str, output_bam: str, paired_end=None) -> None:
 
 	with pysam.AlignmentFile(input_bam, "rb", check_sq=False) as inbam:
 		header = inbam.header.to_dict()
-		paired_end = False
+		observed_paired = None
+		n_records = 0
 		for read in inbam:
+			n_records += 1
 			if not read.is_unmapped:
-				paired_end = read.is_paired
+				observed_paired = read.is_paired
 				break
 
-	logger.info(f"Mode: {'paired-end' if paired_end else 'single-end'}")
+	if paired_end is None:
+		paired_end = bool(observed_paired)
+		source = "detected from BAM" if observed_paired is not None else "no mapped reads, assumed"
+	else:
+		source = "from run configuration"
+		if observed_paired is not None and observed_paired != paired_end:
+			logger.warning(
+				f"Run is configured as {'paired-end' if paired_end else 'single-end'} "
+				f"but the BAM records are flagged "
+				f"{'paired-end' if observed_paired else 'single-end'}. "
+				f"Using the BAM flags."
+			)
+			paired_end = observed_paired
+			source = "from BAM flags, overriding configuration"
+
+	logger.info(f"Mode: {'paired-end' if paired_end else 'single-end'} ({source})")
+
+	if n_records == 0:
+		logger.warning(
+			"Zero aligned reads in this BAM. Likely no eukaryotes present. "
+			"Writing an empty filtered BAM so the rest of the run continues."
+		)
+		tmp_bam = output_bam + ".tmp_unsorted.bam"
+		with pysam.AlignmentFile(tmp_bam, "wb", header=header):
+			pass
+		pysam.sort("-o", output_bam, tmp_bam)
+		os.unlink(tmp_bam)
+		logger.info(f"Done. Output: {output_bam}")
+		return
 
 	logger.info("Complexity filtering")
 
@@ -148,19 +178,24 @@ def filter_bam(input_bam: str, output_bam: str) -> None:
 	logger.info(f"Done. Output: {output_bam}")
 
 
-def main():
-	if len(sys.argv) != 3:
-		print(f"Usage: {sys.argv[0]} <input.bam> <output.bam>", file=sys.stderr)
-		sys.exit(1)
+def main(argv=None):
+	p = argparse.ArgumentParser(
+		description="Filter low-complexity reads and duplicates from a BAM file."
+	)
+	p.add_argument("input_bam")
+	p.add_argument("output_bam")
+	g = p.add_mutually_exclusive_group()
+	g.add_argument("--paired-end", dest="paired_end", action="store_true",
+				   default=None, help="Treat the library as paired-end")
+	g.add_argument("--single-end", dest="paired_end", action="store_false",
+				   default=None, help="Treat the library as single-end")
+	args = p.parse_args(argv)
 
-	input_bam = sys.argv[1]
-	output_bam = sys.argv[2]
-
-	logger.info(f"Input BAM:  {input_bam}")
-	logger.info(f"Output BAM: {output_bam}")
+	logger.info(f"Input BAM:  {args.input_bam}")
+	logger.info(f"Output BAM: {args.output_bam}")
 	logger.info(f"Complexity threshold: < {COMPLEXITY_THRESHOLD} (kmer size k={KMER_SIZE})")
 
-	filter_bam(input_bam, output_bam)
+	filter_bam(args.input_bam, args.output_bam, paired_end=args.paired_end)
 
 
 if __name__ == "__main__":
