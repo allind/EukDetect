@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "eukdetect"
-version = "v2.1.0"
+dynamic = ["version"]
 authors = [
     { name = "Abigail Lind" }
 ]
@@ -12,18 +12,24 @@ description = "Detect eukaryotes from shotgun metagenomic data"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.8"
+dependencies = [
+    "biopython",
+    "ete3",
+    "six",
+    "pysam",
+    "pyyaml",
+    "snakemake>=8",
+]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
 ]
 
 [project.urls]
@@ -33,9 +39,11 @@ Homepage = "https://github.com/allind/EukDetect"
 eukdetect = "eukdetect.wrappers.main:main"
 eukdetect-normalize = "eukdetect.util.normalize_rpks:main"
 
+[tool.setuptools.dynamic]
+version = { attr = "eukdetect.__version__" }
+
 [tool.setuptools.packages.find]
-where = ["."]
+include = ["eukdetect*"]
 
 [tool.setuptools.package-data]
-"eukdetect.rules" = ["*.rules"]
-"eukdetect.envs" = ["*.yml"]
+eukdetect = ["rules/*.rules", "envs/*.yml"]

@@ -67,7 +67,6 @@ def test_database(tmp_path):
 	# Additional required database files
 	(db_dir / "taxa.sqlite.traverse.pkl").touch()
 	(db_dir / "busco_taxid_genome_link.txt").touch()
-	(db_dir / "taxid_and_genome_cumulativelength.txt").touch()
 	(db_dir / "ani.tsv").write_text("genome_a\tgenome_b\t88.5\n")
 	(db_dir / f"{prefix}.fasta").write_text(">seq1\nACGT\n>seq2\nACGTACGT\n")
 	(db_dir / f"{prefix}.fasta.fai").write_text("seq1\t4\t6\t4\t5\nseq2\t8\t16\t8\t9\n")
@@ -586,6 +585,146 @@ class TestSnakemakeExecutor:
 					assert mode in cmd
 			finally:
 				os.unlink(temp_config)
+
+
+class TestEmptySample:
+	"""A sample with no aligned reads must degrade gracefully, never fail"""
+
+	def _empty_bam(self, path):
+		pysam = pytest.importorskip("pysam")
+		header = {
+			"HD": {"VN": "1.6", "SO": "coordinate"},
+			"SQ": [{"SN": "Fungi-testgenome-1at4751-Single1", "LN": 900}],
+		}
+		with pysam.AlignmentFile(str(path), "wb", header=header):
+			pass
+		pysam.index(str(path))
+		return pysam
+
+	def test_complexity_filter_writes_empty_bam(self, tmp_path):
+		pysam = self._empty_bam(tmp_path / "in.bam")
+		from eukdetect.util.complexity_filter import filter_bam
+
+		out = tmp_path / "out.bam"
+		filter_bam(str(tmp_path / "in.bam"), str(out))
+		assert out.exists()
+		with pysam.AlignmentFile(str(out), "rb", check_sq=False) as bam:
+			assert sum(1 for _ in bam) == 0
+
+	def test_complexity_filter_honours_declared_pairing(self, tmp_path):
+		self._empty_bam(tmp_path / "in.bam")
+		from eukdetect.util.complexity_filter import filter_bam
+
+		for pairing in (True, False):
+			out = tmp_path / f"out_{pairing}.bam"
+			filter_bam(str(tmp_path / "in.bam"), str(out), paired_end=pairing)
+			assert out.exists()
+
+	def test_read_identity_on_empty_bam(self, tmp_path):
+		self._empty_bam(tmp_path / "in.bam")
+		from eukdetect.util.read_identity import main as read_identity_main
+
+		out = tmp_path / "idents.tsv"
+		read_identity_main(["--bam", str(tmp_path / "in.bam"), "--out", str(out)])
+		assert out.read_text().startswith("Read\tMate\tMarker")
+
+	def test_no_reads_message_is_recognised_downstream(self):
+		from eukdetect.util.eukfrac_calc import NO_READS_MESSAGE, NO_TAXA_MESSAGE
+		from eukdetect.util.normalize_rpks import _no_reads_line, _no_taxa_line
+
+		assert _no_reads_line(NO_READS_MESSAGE)
+		assert _no_taxa_line(NO_TAXA_MESSAGE)
+		assert _no_reads_line("Empty read count file. Likely no aligned reads in sample.")
+
+
+class TestLibrarySizes:
+	def test_headerless_file_keeps_first_sample(self, tmp_path):
+		from eukdetect.util.normalize_rpks import parse_library_sizes
+
+		f = tmp_path / "libs.tsv"
+		f.write_text("sampA\t3000000000\nsampB\t2500000000\n")
+		assert parse_library_sizes(str(f)) == {"sampA": 3000000000.0, "sampB": 2500000000.0}
+
+	def test_header_is_skipped(self, tmp_path):
+		from eukdetect.util.normalize_rpks import parse_library_sizes
+
+		f = tmp_path / "libs.tsv"
+		f.write_text("sample\ttotal_bases\nsampA\t3000000000\n")
+		assert parse_library_sizes(str(f)) == {"sampA": 3000000000.0}
+
+
+class TestOutputFormat:
+	"""Guarantees the 2.1 output contract: NA everywhere, numbers as numbers"""
+
+	def test_single_missing_value_token(self):
+		import inspect
+		from eukdetect.util import eukfrac_calc, read_identity
+
+		for mod in (eukfrac_calc, read_identity):
+			src = inspect.getsource(mod)
+			assert '"None"' not in src, f"{mod.__name__} still writes the None sentinel"
+
+	def test_na_constant(self):
+		from eukdetect.util.eukfrac_calc import NA
+		assert NA == "NA"
+
+	def test_no_percent_suffix_in_table_writers(self):
+		import inspect
+		from eukdetect.util import eukfrac_calc
+
+		src = inspect.getsource(eukfrac_calc)
+		for bad in ("}%\\t", "}%\\n"):
+			assert bad not in src, "a percentage column is still written with a % suffix"
+
+	def test_reassignment_report_header_and_na(self, tmp_path):
+		from eukdetect.util.reassign_eval import write_report
+
+		out = tmp_path / "reassign.tsv"
+		write_report(str(out), [{
+			"secondary": "123", "primaries": ["456"], "promote": True,
+			"secondary_reads": 5, "secondary_markers": 2,
+			"secondary_median_identity": None, "primary_reads": 10,
+			"primary_median_identity": None, "gap": None, "p_value": None,
+			"abundance_ratio": None, "required_gap": None, "reason": "too few reads",
+		}])
+		lines = out.read_text().strip().split("\n")
+		assert lines[0].startswith("Secondary_taxid\tPrimary_taxids\tPromoted")
+		fields = lines[1].split("\t")
+		assert fields[5] == "NA" and fields[9] == "NA"
+		assert "None" not in fields
+
+	def test_tabular_outputs_are_named_tsv(self):
+		from importlib.resources import files
+
+		rules = (files("eukdetect") / "rules" / "eukdetect.rules").read_text()
+		for stem in ("_read_counts_and_mismatches", "_read_identities",
+					 "_reassignment_report", "_all_hits_table",
+					 "_filtered_hits_table", "_filtered_hits_eukfrac"):
+			assert stem + ".tsv" in rules, f"{stem} is not .tsv in the rules file"
+			assert stem + ".txt" not in rules, f"{stem} still has a .txt reference"
+
+
+class TestVersion:
+	def test_single_version_source(self):
+		import tomllib
+		from pathlib import Path
+		import eukdetect
+
+		root = Path(__file__).parent.parent
+		pyproject = tomllib.loads((root / "pyproject.toml").read_text())
+		assert "version" in pyproject["project"]["dynamic"]
+		assert pyproject["tool"]["setuptools"]["dynamic"]["version"]["attr"] == "eukdetect.__version__"
+		assert eukdetect.__version__ == "2.1.0"
+		assert not (root / "setup.py").exists()
+
+	def test_meta_yaml_version_matches(self):
+		import re
+		from pathlib import Path
+		import eukdetect
+
+		meta = (Path(__file__).parent.parent / "meta.yaml").read_text()
+		m = re.search(r'{% set version = "([^"]+)" %}', meta)
+		assert m and m.group(1) == eukdetect.__version__
 
 
 if __name__ == "__main__":

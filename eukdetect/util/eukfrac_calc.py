@@ -1,5 +1,19 @@
 
-from ete3 import NCBITaxa
+import sys as _sys
+
+try:
+	from ete3 import NCBITaxa
+except ModuleNotFoundError as _e:
+	if _e.name == "cgi":
+		_sys.exit(
+			"ete3 cannot be imported on Python "
+			f"{_sys.version_info.major}.{_sys.version_info.minor}: it imports the "
+			"standard library 'cgi' module, which was removed in Python 3.13.\n"
+			"Install EukDetect with conda, whose ete3 build works on 3.13, or use "
+			"Python 3.12 or earlier."
+		)
+	raise
+
 import argparse
 import textwrap
 import sys
@@ -30,6 +44,8 @@ _BUSCO_RE = re.compile(r"-(\d+at\d+)-")
 
 NO_READS_MESSAGE = "Zero aligned reads in sample. Likely no eukaryotes present."
 NO_TAXA_MESSAGE = "No taxa passing filter requirements."
+
+NA = "NA"
 
 
 def marker_busco_id(seq_name):
@@ -820,12 +836,12 @@ def main(argv):
 				blen = reference_marker_length.get(tax, 0)
 
 				genomes = sorted(list(taxon_observed_genomes.get(tax, set())))
-				genome_str = ",".join(genomes) if genomes else "NA"
+				genome_str = ",".join(genomes) if genomes else NA
 				
 				is_filtered = "No" if tax in filter_passing_taxids else "Yes"
 				
 				dest.write(f"{name}\t{tax}\t{rank}\t{mc}\t{counts}\t"
-						  f"{overall_coverage}%\t{percent_identity}%\t{blen}\t"
+						  f"{overall_coverage}\t{percent_identity}\t{blen}\t"
 						  f"{genome_str}\t{is_filtered}\n")
 		
 		logger.info(f"Wrote all taxa table to {files.alltab}")
@@ -1179,11 +1195,11 @@ def main(argv):
 				total_reassigned_correct = genome_reassigned_correct + species_reassigned_correct
 				total_reassigned_total = genome_reassigned_total + species_reassigned_total
 				
-				reassigned_pid = round((total_reassigned_correct / total_reassigned_total) * 100, 2) if total_reassigned_total > 0 else 0.0
+				reassigned_pid = round((total_reassigned_correct / total_reassigned_total) * 100, 2) if total_reassigned_total > 0 else NA
 				
 				#Build full list of reassigned genomes
 				all_reassigned_genomes = sorted(list(genome_reassigned_genomes | species_reassigned_genomes))
-				reassigned_genome_str = ",".join(all_reassigned_genomes) if all_reassigned_genomes else "None"
+				reassigned_genome_str = ",".join(all_reassigned_genomes) if all_reassigned_genomes else NA
 				
 				#RPKS over the full reference-derived marker length
 				total_reads_all = reads_original + total_reassigned_reads
@@ -1191,14 +1207,14 @@ def main(argv):
 				
 				#Get genomes detected for this taxid
 				genomes = sorted(list(node_observed_genomes.get(tax, set())))
-				genome_str = ",".join(genomes) if genomes else "NA"
+				genome_str = ",".join(genomes) if genomes else NA
 				observed_len = int(node_total_marker_length.get(tax, 0))
 				
 				dest.write(f"{name}\t{rank}\t{lin}\t{tax}\t"
 						  f"{round(total_reads_all, 2)}\t{int(total_genome_marker_length)}\t"
 						  f"{observed_len}\t{rpks}\t"
-						  f"{round(reads_original, 2)}\t{pid_original}%\t{genome_str}\t"
-						  f"{total_reassigned_reads}\t{reassigned_pid}%\t{reassigned_genome_str}\n")
+						  f"{round(reads_original, 2)}\t{pid_original}\t{genome_str}\t"
+						  f"{total_reassigned_reads}\t{reassigned_pid}\t{reassigned_genome_str}\n")
 		
 		logger.info(f"Wrote primary table to {files.primarytab}")
 	except Exception as e:
@@ -1229,14 +1245,14 @@ def main(argv):
 					if rank == "species":
 						rpks = round(relabs[node.name][0], 4)
 					else:
-						rpks = "NA"
+						rpks = NA
 					
 					total_marker_length = int(relabs[node.name][1])
 					rel_abundance = round(relabs[node.name][2], 4)
 					total_reads = round(relabs[node.name][3], 2)
 					
 					genomes = sorted(list(node_observed_genomes.get(node.name, set())))
-					genome_str = ",".join(genomes) if genomes else "NA"
+					genome_str = ",".join(genomes) if genomes else NA
 					
 					dest.write(f"{lin}\t{rank}\t{name}\t{node.name}\t{rpks}\t"
 							  f"{rel_abundance}\t{total_reads}\t{total_marker_length}\t{genome_str}\n")

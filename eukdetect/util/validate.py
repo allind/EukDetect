@@ -246,12 +246,12 @@ def check_filter_outputs(config: dict, force: bool) -> None:
 		files = [
 			output_dir / "filtering" / f"{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam",
 			output_dir / "filtering" / f"{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam.bai",
-			output_dir / "filtering" / f"{sample}_read_counts_and_mismatches.txt",
-			output_dir / "filtering" / f"{sample}_read_identities.txt",
-			output_dir / "filtering" / f"{sample}_reassignment_report.txt",
-			output_dir / "filtering" / f"{sample}_all_hits_table.txt",
-			output_dir / f"{sample}_filtered_hits_table.txt",
-			output_dir / f"{sample}_filtered_hits_eukfrac.txt",
+			output_dir / "filtering" / f"{sample}_read_counts_and_mismatches.tsv",
+			output_dir / "filtering" / f"{sample}_read_identities.tsv",
+			output_dir / "filtering" / f"{sample}_reassignment_report.tsv",
+			output_dir / "filtering" / f"{sample}_all_hits_table.tsv",
+			output_dir / f"{sample}_filtered_hits_table.tsv",
+			output_dir / f"{sample}_filtered_hits_eukfrac.tsv",
 		]
 		
 		for f in files:

@@ -12,12 +12,12 @@ rule all:
 		expand("{output_dir}/aln/{sample}_aln_q10_lenfilter.sorted.bam", sample=config["samples"], output_dir=config["output_dir"]),
 		expand("{output_dir}/filtering/{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam", sample=config["samples"], output_dir=config["output_dir"]),
 		expand("{output_dir}/filtering/{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam.bai", sample=config["samples"], output_dir=config["output_dir"]),
-		expand("{output_dir}/filtering/{sample}_read_counts_and_mismatches.txt", sample=config["samples"], output_dir=config["output_dir"]),
-		expand("{output_dir}/filtering/{sample}_read_identities.txt", sample=config["samples"], output_dir=config["output_dir"]),
-		expand("{output_dir}/filtering/{sample}_reassignment_report.txt", sample=config["samples"], output_dir=config["output_dir"]),
-		expand("{output_dir}/filtering/{sample}_all_hits_table.txt", sample=config["samples"], output_dir=config["output_dir"]),
-		expand("{output_dir}/{sample}_filtered_hits_table.txt", sample=config["samples"], output_dir=config["output_dir"]),
-		expand("{output_dir}/{sample}_filtered_hits_eukfrac.txt", sample=config["samples"], output_dir=config["output_dir"])
+		expand("{output_dir}/filtering/{sample}_read_counts_and_mismatches.tsv", sample=config["samples"], output_dir=config["output_dir"]),
+		expand("{output_dir}/filtering/{sample}_read_identities.tsv", sample=config["samples"], output_dir=config["output_dir"]),
+		expand("{output_dir}/filtering/{sample}_reassignment_report.tsv", sample=config["samples"], output_dir=config["output_dir"]),
+		expand("{output_dir}/filtering/{sample}_all_hits_table.tsv", sample=config["samples"], output_dir=config["output_dir"]),
+		expand("{output_dir}/{sample}_filtered_hits_table.tsv", sample=config["samples"], output_dir=config["output_dir"]),
+		expand("{output_dir}/{sample}_filtered_hits_eukfrac.tsv", sample=config["samples"], output_dir=config["output_dir"])
 
 rule printaln:
 	input:
@@ -31,12 +31,12 @@ rule analyze:
 	input:
 		expand("{output_dir}/filtering/{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam", sample=config["samples"], output_dir=config["output_dir"]),
 		expand("{output_dir}/filtering/{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam.bai", sample=config["samples"], output_dir=config["output_dir"]),
-		expand("{output_dir}/filtering/{sample}_read_counts_and_mismatches.txt", sample=config["samples"], output_dir=config["output_dir"]),
-		expand("{output_dir}/filtering/{sample}_read_identities.txt", sample=config["samples"], output_dir=config["output_dir"]),
-		expand("{output_dir}/filtering/{sample}_reassignment_report.txt", sample=config["samples"], output_dir=config["output_dir"]),
-		expand("{output_dir}/filtering/{sample}_all_hits_table.txt", sample=config["samples"], output_dir=config["output_dir"]),
-		expand("{output_dir}/{sample}_filtered_hits_table.txt", sample=config["samples"], output_dir=config["output_dir"]),
-		expand("{output_dir}/{sample}_filtered_hits_eukfrac.txt", sample=config["samples"], output_dir=config["output_dir"])
+		expand("{output_dir}/filtering/{sample}_read_counts_and_mismatches.tsv", sample=config["samples"], output_dir=config["output_dir"]),
+		expand("{output_dir}/filtering/{sample}_read_identities.tsv", sample=config["samples"], output_dir=config["output_dir"]),
+		expand("{output_dir}/filtering/{sample}_reassignment_report.tsv", sample=config["samples"], output_dir=config["output_dir"]),
+		expand("{output_dir}/filtering/{sample}_all_hits_table.tsv", sample=config["samples"], output_dir=config["output_dir"]),
+		expand("{output_dir}/{sample}_filtered_hits_table.tsv", sample=config["samples"], output_dir=config["output_dir"]),
+		expand("{output_dir}/{sample}_filtered_hits_eukfrac.tsv", sample=config["samples"], output_dir=config["output_dir"])
 
 
 #Alignment
@@ -166,7 +166,7 @@ rule countreads:
 		bai = config["output_dir"] + "/filtering/{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam.bai",
 		ref = config["database_dir"] + "/" + config["database_prefix"] + ".fasta"
 	output:
-		counts = config["output_dir"] + "/filtering/{sample}_read_counts_and_mismatches.txt"
+		counts = config["output_dir"] + "/filtering/{sample}_read_counts_and_mismatches.tsv"
 	params:
 		script = _BAM_TO_PID
 	shell:
@@ -177,7 +177,7 @@ rule read_identity:
 	input:
 		bam = config["output_dir"] + "/filtering/{sample}_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam"
 	output:
-		table = config["output_dir"] + "/filtering/{sample}_read_identities.txt"
+		table = config["output_dir"] + "/filtering/{sample}_read_identities.tsv"
 	params:
 		script = _READ_IDENTITY
 	shell:
@@ -188,17 +188,17 @@ rule read_identity:
 
 rule taxonomize:
 	input:
-		counts            = config["output_dir"] + "/filtering/{sample}_read_counts_and_mismatches.txt",
+		counts            = config["output_dir"] + "/filtering/{sample}_read_counts_and_mismatches.tsv",
 		taxid_link        = config["database_dir"] + "/busco_taxid_genome_link.txt",
 		taxdb             = config["database_dir"] + "/taxa.sqlite",
 		ani               = config.get("ani_file") or (config["database_dir"] + "/ani.tsv"),
-		readids           = config["output_dir"] + "/filtering/{sample}_read_identities.txt",
+		readids           = config["output_dir"] + "/filtering/{sample}_read_identities.tsv",
 		ref               = config["database_dir"] + "/" + config["database_prefix"] + ".fasta"
 	output:
-		allhits         = config["output_dir"] + "/filtering/{sample}_all_hits_table.txt",
-		primary_hits    = config["output_dir"] + "/{sample}_filtered_hits_table.txt",
-		primary_eukfrac = config["output_dir"] + "/{sample}_filtered_hits_eukfrac.txt",
-		reassign_report = config["output_dir"] + "/filtering/{sample}_reassignment_report.txt"
+		allhits         = config["output_dir"] + "/filtering/{sample}_all_hits_table.tsv",
+		primary_hits    = config["output_dir"] + "/{sample}_filtered_hits_table.tsv",
+		primary_eukfrac = config["output_dir"] + "/{sample}_filtered_hits_eukfrac.tsv",
+		reassign_report = config["output_dir"] + "/filtering/{sample}_reassignment_report.tsv"
 	params:
 		script = _EUKFRAC_CALC,
 		ani_threshold = config.get("ani_threshold", 80.0)

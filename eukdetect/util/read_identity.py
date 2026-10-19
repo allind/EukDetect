@@ -66,7 +66,7 @@ def main(argv=None):
 			try:
 				score = rec.get_tag("AS")
 			except KeyError:
-				score = ""
+				score = "NA"
 			mate = 2 if rec.is_read2 else 1
 			out.write(
 				f"{rec.query_name}\t{mate}\t{rec.reference_name}\t"

@@ -92,8 +92,11 @@ def extract_sample_name(eukfrac_file):
 	filename = Path(eukfrac_file).name
 	
 	suffixes_to_remove = [
+		'_filtered_hits_eukfrac.tsv',
 		'_filtered_hits_eukfrac.txt',
+		'_eukfrac.tsv',
 		'_eukfrac.txt',
+		'.tsv',
 		'.txt'
 	]
 	
@@ -308,7 +311,7 @@ def main():
 		epilog="""
 Examples:
   eukdetect-normalize \\
-    --eukfrac results/*_filtered_hits_eukfrac.txt \\
+    --eukfrac results/*_filtered_hits_eukfrac.tsv \\
     --library-sizes library_sizes.tsv \\
     --output unified_abundance.tsv
 

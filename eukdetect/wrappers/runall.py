@@ -603,8 +603,8 @@ def _print_output_summary(config_dict: dict, mode: str):
 		logger.info(f"\nResults directory: {output_dir}")
 		logger.info("\nFiltered output files:")
 		for sample in samples:
-			hit_table = output_dir / f"{sample}_filtered_hits_table.txt"
-			eukfrac = output_dir / f"{sample}_filtered_hits_eukfrac.txt"
+			hit_table = output_dir / f"{sample}_filtered_hits_table.tsv"
+			eukfrac = output_dir / f"{sample}_filtered_hits_eukfrac.tsv"
 			logger.info(f"  • {sample}:")
 			logger.info(f"	  - {hit_table}")
 			logger.info(f"	  - {eukfrac}")
