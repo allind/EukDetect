@@ -1,0 +1,6 @@
+include LICENSE
+include README.md
+recursive-include eukdetect/rules *.rules
+recursive-include eukdetect/envs *.yml
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]

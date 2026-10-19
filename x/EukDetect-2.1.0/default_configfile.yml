@@ -1,0 +1,72 @@
+#Default config file for EukDetect. Copy and edit for your analysis.
+#
+#Every key below is read by the pipeline. Keys not listed here are ignored.
+
+#Directory where EukDetect output should be written
+output_dir: "/path/to/dir"
+
+#Indicate whether reads are paired (true) or single (false)
+paired_end: true
+
+#filename excluding sample name. no need to edit if paired_end = false
+fwd_suffix: "_R1.fastq.gz"
+
+#filename excluding sample name. no need to edit if paired_end = false
+rev_suffix: "_R2.fastq.gz"
+
+#file name excluding sample name. no need to edit if paired_end = true
+se_suffix: ".fastq.gz"
+
+#length of your reads. pre-trimming reads not recommended
+readlen: 125
+
+#full path to directory with raw fastq files
+fq_dir: "/path/to/dir"
+
+#full path to folder with eukdetect database files
+database_dir: "/path/to/dir"
+
+#basename of the bowtie2 index inside database_dir
+database_prefix: "eukdb"
+
+#full path to eukdetect installation folder
+eukdetect_dir: "/path/to/dir"
+
+#threads for bowtie2 and samtools sort
+bowtie2_cores: 1
+
+#--- Taxonomic disambiguation -------------------------------------------------
+
+#Species that compete for reads are the UNION of two kinds of link: genomes at
+#or above the ANI threshold, and species sharing an NCBI genus. Neither alone is
+#enough. ANI cannot see transcriptome-derived entries that have no genome to
+#compare. NCBI genus cannot see near-identical species that taxonomy has split
+#across genera. Taking the union means an over-split genus is corrected by ANI,
+#and a gap in ANI coverage is covered by taxonomy.
+#
+#Grouping two species is a decision to COMPETE them, not to merge them.
+
+#Path to the ANI table. Defaults to <database_dir>/ani.tsv, which is a required
+#database file: three tab-separated columns, no header, genome_1, genome_2, ANI,
+#with genome IDs matching column 3 of busco_taxid_genome_link.txt.
+#ani_file: "/path/to/ani.tsv"
+
+#ANI cutoff for linking two genomes. Accepts either scale: values are read as
+#0-100 and a table on the 0-1 scale is auto-detected and rescaled.
+#
+#This is NOT a species boundary. It asks "are these two close enough that their
+#reads can be confused", which is a looser question, so the right value sits
+#well below the 95-97 usually quoted for species delimitation. BUSCO markers are
+#conserved genes and run several points more identical than the genome average,
+#so a genome-ANI cutoff has to sit below the marker identity it stands in for.
+#
+#Cross-genus cases are the reason this exists: genomes carrying a different
+#genus label can still sit inside the ANI range of a species' own congeners,
+#where taxonomy grouping cannot see them.
+ani_threshold: 80.0
+
+#list sample names here. fastqs must correspond to {samplename}{se_suffix} for SE reads or {samplename}{fwd_suffix} and {samplename}{rev_suffix} for PE
+#each sample name should be preceded by 2 spaces and followed by a colon character
+samples:
+  sample1:
+  sample2:

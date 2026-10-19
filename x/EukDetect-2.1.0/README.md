@@ -1,0 +1,485 @@
+# EukDetect
+
+EukDetect is a bioinformatics tool for detecting eukaryotic organisms in metagenomic sequencing data. It uses a curated database of marker genes to identify eukaryotic species present in microbial communities.
+
+## Features
+
+- Detect eukaryotic organisms from shotgun metagenomic sequencing data
+- Support for both paired-end and single-end sequencing data
+- Process individual samples or batches in parallel
+- Estimates absolute and relative abundance of detected eukaryotes
+- Comprehensive quality filtering and marker gene coverage analysis
+
+## How EukDetect works
+
+EukDetect runs a Snakemake pipeline internally. Given one or more FASTQ files, it executes the following steps:
+
+```
+FASTQ reads
+    │
+    ▼
+[bowtie2] — align to EukDetect marker gene database (end-to-end, very-sensitive)
+    │         — filter: MAPQ ≥ 10, aligned length ≥ 80% of read length
+    ▼
+[complexity_filter.py] — remove low-complexity reads (unique 4-mers / length < 0.5)
+    │                   — remove PCR duplicates (highest base-quality read kept per position)
+    ▼
+[bam_to_pid.py] — count reads and compute percent identity per marker gene
+    │
+    ▼
+[eukfrac_calc.py] — taxonomic assignment, genus/genome-level disambiguation,
+    │                filtering (≥ 2 marker genes AND ≥ 4 reads),
+    │                RPKS calculation and relative abundance (EukFrac)
+    ▼
+{sample}_filtered_hits_table.tsv
+{sample}_filtered_hits_eukfrac.tsv
+```
+
+**Modes** — EukDetect supports running subsets of this pipeline:
+- `all` (default): full pipeline from reads to filtered output
+- `aln`: alignment step only (produces BAM)
+- `analyze`: filtering and analysis only (requires existing BAM from `aln` mode)
+- `printaln`: write alignment shell commands to a file without executing them
+
+## Installation
+
+### Option 1: Install from Bioconda (Recommended)
+
+To install EukDetect throuch bioconda, run:
+
+```
+conda create -n eukdetect2 -c bioconda eukdetect
+
+```
+
+### Option 2: Install from GitHub
+
+1. Clone the repository:
+```
+git clone https://github.com/allind/EukDetect.git
+cd EukDetect
+```
+
+2. Create the conda environment:
+```
+conda env create -f eukdetect/envs/eukdetect2_environment.yml
+conda activate eukdetect
+```
+
+3. Install EukDetect:
+```
+pip install -e .
+```
+
+4. Verify installation:
+```
+eukdetect --help
+```
+
+**Python 3.13 and pip:** `ete3` on PyPI imports the `cgi` module, removed from
+the standard library in Python 3.13, so `pip install eukdetect` on 3.13 installs
+without error and then fails when taxonomy is first loaded. Install with conda,
+whose `ete3` build is unaffected, or use Python 3.12 or earlier.
+
+### Database Installation
+
+The EukDetect2 database is hosted on [Zenodo](https://zenodo.org/records/19056625) (DOI: 10.5281/zenodo.19056625). The database files total approximately 7.1 GB.
+
+Download all files individually using zenodo_get (included in EukDetect2 environment):
+
+```
+mkdir eukdb
+cd eukdb
+zenodo_get 19056625
+```
+
+After downloading, pass the `eukdb/` directory path to EukDetect via `--database eukdb/`. The default database prefix is `eukdb` (matching the `.bt2l` index files); no `--database-prefix` flag is needed unless you rename the files.
+
+The previous EukDetect v1 database is [still available on Figshare](https://doi.org/10.6084/m9.figshare.12670856.v4) but is **not compatible** with EukDetect2.
+
+## Quick Start
+
+### Single Sample
+
+Process a single paired-end sample:
+```
+eukdetect single \
+  -1 sample_R1.fastq.gz \
+  -2 sample_R2.fastq.gz \
+  -n sample_name \
+  --outdir results/ \
+  --database /path/to/eukdb \
+  --cores 16
+```
+
+Process a single-end sample:
+```
+eukdetect single \
+  -1 sample.fastq.gz \
+  -n sample_name \
+  --outdir results/ \
+  --database /path/to/eukdb \
+  --cores 16
+```
+
+Single-sample cores are used to run multi-threaded bowtie2 and are not used for other parts of the pipeline.
+
+There is currently no support for a mixture of paired and single end reads for a sample.
+
+### Multiple Samples (Batch local mode)
+
+1. Create a tab-separated samples file (`samples.tsv`):
+
+For paired-end data:
+```
+sample_name	reads1	reads2
+sample1	/path/to/sample1_R1.fastq.gz	/path/to/sample1_R2.fastq.gz
+sample2	/path/to/sample2_R1.fastq.gz	/path/to/sample2_R2.fastq.gz
+sample3	/path/to/sample3_R1.fastq.gz	/path/to/sample3_R2.fastq.gz
+```
+
+For single-end data:
+```
+sample_name	reads1
+sample1	/path/to/sample1.fastq.gz
+sample2	/path/to/sample2.fastq.gz
+sample3	/path/to/sample3.fastq.gz
+```
+
+2. Run batch mode:
+```
+eukdetect batch \
+  --samples samples.tsv \
+  --outdir results/ \
+  --database /path/to/eukdb \
+  --cores 10
+```
+
+This will process 10 samples in parallel on your local machine. Bowtie2 will use 1 core per sample by default.
+
+## Usage
+
+### Command-line Interface
+
+EukDetect provides two main commands:
+
+#### Single Mode
+Process individual samples. Use this for:
+- Running one sample at a time
+- HPC job arrays (one job per sample)
+
+```
+eukdetect single [options]
+```
+
+**Required arguments:**
+- `-1, --reads1`: Forward reads (R1) or single-end reads (required)
+- `--outdir, -o`: Output directory (required)
+- `--database, -d`: Path to EukDetect database directory (required)
+
+**Optional arguments:**
+- `-2, --reads2`: Reverse reads (R2) for paired-end data
+- `-n, --name`: Sample name (auto-detected from filename if not provided)
+- `--database-prefix`: Database file prefix (default: eukdb)
+- `--cores, -c`: Number of CPU threads for alignment (default: 1)
+- `--readlen`: Read length (auto-detected if not provided)
+- `--mode`: Analysis mode (default: all)
+- `--force`: Overwrite existing output files
+- `--dry-run`: Preview commands without executing
+
+#### Batch Mode
+Process multiple samples in parallel locally.
+
+```
+eukdetect batch [options]
+```
+
+**Required arguments:**
+- `--samples`: Tab-separated file with sample information (required)
+- `--outdir, -o`: Output directory (required)
+- `--database, -d`: Path to EukDetect database directory (required)
+
+**Optional arguments:**
+- `--database-prefix`: Database file prefix (default: eukdb)
+- `--cores, -c`: Number of samples to process in parallel (default: 1)
+- `--readlen`: Read length in bp (auto-detected if not provided)
+- `--mode`: Analysis mode (default: all)
+- `--force`: Overwrite existing output files
+- `--dry-run`: Preview workflow without executing
+
+In batch mode, `--cores` controls how many samples run in parallel. Bowtie2 uses 1 core per sample.
+
+### Analysis Modes
+
+EukDetect supports four analysis modes via the `--mode` option:
+
+- `all` (default): Run complete pipeline (alignment + filtering + analysis)
+- `aln`: Run alignment step only
+- `analyze`: Run filtering and analysis only (requires existing alignments)
+- `printaln`: Generate file with alignment commands for manual execution
+
+**Examples:**
+
+```
+# Run only alignment
+eukdetect single -1 R1.fq.gz -2 R2.fq.gz -n sample -o out/ -d eukdb/ --mode aln --cores 16
+
+# Run analysis on existing alignments
+eukdetect single -1 R1.fq.gz -2 R2.fq.gz -n sample -o out/ -d eukdb/ --mode analyze
+
+# Generate alignment commands for manual execution or cluster submission
+eukdetect single -1 R1.fq.gz -2 R2.fq.gz -n sample -o out/ -d eukdb/ --mode printaln
+```
+
+## Output Files
+
+All tabular output is tab-separated and named `.tsv`. Missing or undefined values
+are written as `NA` in every column of every file, so the tables load without
+special handling in both ecosystems:
+
+```r
+read.delim("sample1_filtered_hits_table.tsv")              # R
+```
+```python
+pandas.read_csv("sample1_filtered_hits_table.tsv", sep="\t")   # Python
+```
+
+Numeric columns contain bare numbers. Percentages are written as numbers on a
+0-100 scale with no `%` suffix, so they parse as floats rather than strings.
+
+EukDetect creates the following output directory structure:
+
+```
+results/
+|-- configs/
+|   `-- config_sample1_1.yml
+|-- logs/
+|   `-- snakemake_sample1_20260101_120000.log
+|-- aln/
+|   `-- sample1_aln_q10_lenfilter.sorted.bam
+|-- filtering/
+|   |-- sample1_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam
+|   |-- sample1_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam.bai
+|   |-- sample1_read_counts_and_mismatches.tsv
+|   |-- sample1_read_identities.tsv
+|   |-- sample1_reassignment_report.tsv
+|   `-- sample1_all_hits_table.tsv
+|-- sample1_filtered_hits_table.tsv
+`-- sample1_filtered_hits_eukfrac.tsv
+```
+
+### `{sample}_filtered_hits_table.tsv`
+
+One row per taxon passing the read and marker filters.
+
+| Column | Type | Description |
+| --- | --- | --- |
+| Name | character | NCBI taxon name |
+| Rank | character | NCBI rank |
+| Lineage | character | Full lineage string |
+| Taxid | integer | NCBI taxonomy ID |
+| Total_reads | numeric | Reads aligned plus reads reassigned to this taxon |
+| Total_marker_length | integer | Non-redundant marker length in the database, in bases |
+| Observed_marker_length | integer | Length of the markers that received reads |
+| RPKS | numeric | Reads per kilobase of marker sequence |
+| Reads_aligned | numeric | Reads aligning to this taxon before reassignment |
+| PID_aligned | numeric | Percent identity of those reads, 0-100 |
+| Genomes | character | Comma-separated assemblies with aligned reads; `NA` if none |
+| Reads_reassigned | numeric | Reads moved here from a competing taxon |
+| PID_reassigned | numeric | Percent identity of the reassigned reads, 0-100; `NA` when no reads were reassigned |
+| Reassigned_genomes | character | Comma-separated assemblies the reassigned reads came from; `NA` if none |
+
+### `{sample}_filtered_hits_eukfrac.tsv`
+
+One row per node of the taxonomy tree spanned by the detected taxa.
+
+| Column | Type | Description |
+| --- | --- | --- |
+| Lineage | character | Full lineage string |
+| Rank | character | NCBI rank |
+| Name | character | NCBI taxon name |
+| TaxID | integer | NCBI taxonomy ID |
+| RPKS | numeric | Reads per kilobase of marker sequence; `NA` above species level |
+| Relative_abundance | numeric | Abundance relative to other detected eukaryotes |
+| Reads_total | numeric | Reads assigned at or below this node |
+| Total_marker_length | integer | Non-redundant marker length, in bases |
+| Genomes | character | Comma-separated assemblies with aligned reads; `NA` if none |
+
+### `filtering/{sample}_all_hits_table.tsv`
+
+Every taxon with aligned reads, before filtering.
+
+| Column | Type | Description |
+| --- | --- | --- |
+| Name | character | NCBI taxon name |
+| Taxid | integer | NCBI taxonomy ID |
+| Rank | character | NCBI rank |
+| Observed_markers | integer | Markers with at least one aligned read |
+| Read_counts | numeric | Reads aligned |
+| Total_marker_coverage | numeric | Percent of marker bases covered, 0-100 |
+| Percent_identity | numeric | Mean percent identity of aligned reads, 0-100 |
+| Total_marker_length | integer | Non-redundant marker length, in bases |
+| Genomes | character | Comma-separated assemblies with aligned reads; `NA` if none |
+| Filtered | character | `Yes` if the taxon was removed by the read and marker filters |
+
+### `filtering/{sample}_reassignment_report.tsv`
+
+One row per secondary taxon evaluated against its primary. Written for every
+sample, including samples with no detections, in which case it holds the header
+alone.
+
+| Column | Type | Description |
+| --- | --- | --- |
+| Secondary_taxid | integer | Taxon under evaluation |
+| Primary_taxids | character | Comma-separated competitors it was tested against |
+| Promoted | character | `yes` if it was kept as its own species |
+| Secondary_reads | integer | Reads on the secondary |
+| Secondary_markers | integer | Markers carrying those reads |
+| Secondary_median_identity | numeric | Median read identity, 0-100; `NA` if not evaluated |
+| Primary_reads | integer | Reads on the primaries |
+| Primary_median_identity | numeric | Median read identity, 0-100; `NA` if not evaluated |
+| Gap | numeric | Primary median minus secondary median, in identity points |
+| MWU_p_value | numeric | One-sided Mann-Whitney p-value; `NA` if not evaluated |
+| Abundance_ratio | numeric | Secondary reads per base over primary reads per base |
+| Required_gap | numeric | Gap the secondary had to clear to be kept |
+| Reason | character | Sentence describing the decision |
+
+### `filtering/{sample}_read_identities.tsv`
+
+One row per aligned read.
+
+| Column | Type | Description |
+| --- | --- | --- |
+| Read | character | Read name |
+| Mate | integer | 1 or 2 |
+| Marker | character | Marker sequence the read aligned to |
+| Identity | numeric | Percent identity, 0-100 |
+| Aligned_len | integer | Aligned length in bases |
+| Mismatches | integer | Substitutions |
+| AS | integer | Bowtie2 alignment score; `NA` if the aligner did not report one |
+
+### `filtering/{sample}_read_counts_and_mismatches.tsv`
+
+One row per marker sequence with aligned reads.
+
+| Column | Type | Description |
+| --- | --- | --- |
+| Subject | character | Marker sequence name |
+| Readcount | integer | Reads aligned to this marker |
+| Correct_bases | integer | Reference positions matching in every read |
+| Incorrect_bases | integer | Reference positions mismatching in at least one read |
+| Total_bases | integer | Reference positions with coverage |
+| Subjlen | integer | Marker length in bases |
+| Coverage | numeric | Percent of marker bases covered, 0-100 |
+| Percent_ID | numeric | Percent of covered positions matching the reference, 0-100 |
+
+Samples with no aligned reads produce all of the files above. The three
+species-level tables hold a single line reading
+`Zero aligned reads in sample. Likely no eukaryotes present.`, which
+`eukdetect-normalize` recognises and skips.
+
+
+## Important Considerations
+
+**EukFrac interpretation:** The relative abundance metric (`Relative_abundance` in the per-sample table, `{sample}_EukFrac` in the normalized table) is relative only to other eukaryotes, not to bacteria or archaea. Always consider RPKS alongside it when interpreting results.
+
+**Filtering thresholds:** By default, EukDetect removes taxa with fewer than 4 reads aligning to fewer than 2 marker genes. Unfiltered results are available in the `filtering/` directory.
+
+**Read length:** EukDetect supports reads over 75 base pairs long.
+
+**Paired-end data:** Forward and reverse read files must have the same number of reads (properly paired).
+
+**Mixed data:** Cannot mix single-end and paired-end samples in the same batch run. Run them separately.
+
+**File naming:** For batch mode, all samples must use consistent file extensions and naming patterns.
+
+**Input file directory:** All input FASTQ files for a single batch run must reside in the same directory. EukDetect infers one shared `fq_dir` from the first sample and constructs all other file paths as `{fq_dir}/{sample_name}{suffix}`. Samples stored in different directories cannot be processed in a single batch run — symlink them into a common directory first, or run them as separate `eukdetect single` invocations.
+
+**Comparing across samples:** RPKS cannot be directly compared between samples without first normalizing by library size.
+
+## Normalizing RPKS Across Samples
+
+RPKS values from EukDetect are not normalized by total sequencing depth. To enable cross-sample comparisons and to combine RPKS and relative abundance data across samples into one file, use the provided `eukdetect-normalize` command.
+
+The normalization script produces a combined table with the following columns per sample:
+
+- **`{sample}_RPKS`**: Reads Per Kilobase of Sequence (species-level only; NA at higher ranks)
+- **`{sample}_RPKSB`**: RPKS normalized per billion total bases in the library (species-level only; NA at higher ranks)
+- **`{sample}_EukFrac`**: Relative abundance among detected eukaryotes (all taxonomic levels)
+
+**Usage:**
+```
+eukdetect-normalize \
+  --eukfrac results/*_filtered_hits_eukfrac.tsv \
+  --library-sizes library_sizes.tsv \
+  --output all_samples_normalized.tsv
+```
+
+**Preparing the Library Sizes File**
+
+Create a tab-separated file with sample names and total **base** counts:
+
+```
+sample_name	total_bases
+sample1	7500000000
+sample2	11250000000
+sample3	15000000000
+```
+
+**To compute total bases from FASTQ files:**
+
+```
+echo -e "sample_name\ttotal_bases" > library_sizes.tsv
+
+# Paired-end: sum bases across both read files
+for sample in sample1 sample2 sample3; do
+    bases=$(zcat ${sample}_R1.fastq.gz ${sample}_R2.fastq.gz \
+        | awk 'NR%4==2{sum+=length($0)}END{print sum}')
+    echo -e "${sample}\t${bases}" >> library_sizes.tsv
+done
+```
+
+For single-end data, omit the second file from the `zcat` command.
+
+## Testing
+
+Run the test suite to verify your installation:
+
+```
+pytest tests/ -v
+```
+
+## Citation
+
+If you use EukDetect, please cite the [paper in _Microbiome_](https://microbiomejournal.biomedcentral.com/articles/10.1186/s40168-021-01015-y):
+
+Lind, A.L., Pollard, K.S. Accurate and sensitive detection of microbial eukaryotes from whole metagenome shotgun sequencing. Microbiome 9, 58 (2021).
+
+## Taxonomy Database Issues
+
+The EukDetect pipeline uses the ete3 package to interface with the NCBI taxonomy database. The database uses the NCBI taxonomy release from early 2026. The Zenodo repository includes both the taxdump file (`taxdump.tar.gz`) and the pre-built ete3 sqlite database (`taxa.sqlite` and `taxa.sqlite.traverse.pkl`).
+
+If you encounter errors from the ete3 package, you may need to regenerate the taxonomy database. From the `eukdb/` directory:
+
+```
+conda activate eukdetect
+```
+
+Open a Python console and run:
+
+```
+from ete3 import NCBITaxa
+ncbi = NCBITaxa()
+ncbi.update_taxonomy_database(taxdump_file="taxdump.tar.gz")
+exit()
+```
+
+Move the newly created `taxa.sqlite` and `taxa.sqlite.traverse.pkl` files from `~/.etetoolkit/` to the EukDetect database folder, replacing the existing files.
+
+## Bioconda
+
+EukDetect2 is being prepared for submission to Bioconda. In the meantime, install from GitHub (see above).
+
+## License
+
+EukDetect is distributed under the MIT License. See LICENSE file for details.
