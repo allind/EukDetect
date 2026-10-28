@@ -629,7 +629,7 @@ class TestEmptySample:
 		assert out.read_text().startswith("Read\tMate\tMarker")
 
 	def test_no_reads_message_is_recognised_downstream(self):
-		from eukdetect.util.eukfrac_calc import NO_READS_MESSAGE, NO_TAXA_MESSAGE
+		from eukdetect.util.releuk_calc import NO_READS_MESSAGE, NO_TAXA_MESSAGE
 		from eukdetect.util.normalize_rpks import _no_reads_line, _no_taxa_line
 
 		assert _no_reads_line(NO_READS_MESSAGE)
@@ -658,21 +658,21 @@ class TestOutputFormat:
 
 	def test_single_missing_value_token(self):
 		import inspect
-		from eukdetect.util import eukfrac_calc, read_identity
+		from eukdetect.util import releuk_calc, read_identity
 
-		for mod in (eukfrac_calc, read_identity):
+		for mod in (releuk_calc, read_identity):
 			src = inspect.getsource(mod)
 			assert '"None"' not in src, f"{mod.__name__} still writes the None sentinel"
 
 	def test_na_constant(self):
-		from eukdetect.util.eukfrac_calc import NA
+		from eukdetect.util.releuk_calc import NA
 		assert NA == "NA"
 
 	def test_no_percent_suffix_in_table_writers(self):
 		import inspect
-		from eukdetect.util import eukfrac_calc
+		from eukdetect.util import releuk_calc
 
-		src = inspect.getsource(eukfrac_calc)
+		src = inspect.getsource(releuk_calc)
 		for bad in ("}%\\t", "}%\\n"):
 			assert bad not in src, "a percentage column is still written with a % suffix"
 
@@ -699,7 +699,7 @@ class TestOutputFormat:
 		rules = (files("eukdetect") / "rules" / "eukdetect.rules").read_text()
 		for stem in ("_read_counts_and_mismatches", "_read_identities",
 					 "_reassignment_report", "_all_hits_table",
-					 "_filtered_hits_table", "_filtered_hits_eukfrac"):
+					 "_filtered_hits_table", "_filtered_hits_releuk"):
 			assert stem + ".tsv" in rules, f"{stem} is not .tsv in the rules file"
 			assert stem + ".txt" not in rules, f"{stem} still has a .txt reference"
 
@@ -725,6 +725,53 @@ class TestVersion:
 		meta = (Path(__file__).parent.parent / "meta.yaml").read_text()
 		m = re.search(r'{% set version = "([^"]+)" %}', meta)
 		assert m and m.group(1) == eukdetect.__version__
+
+
+class TestEte3Compat:
+	"""The cgi shim replaces the legacy-cgi dependency"""
+
+	def test_shim_is_faithful_to_urllib(self):
+		from urllib.parse import parse_qs
+		from eukdetect.util.ete3_compat import install_cgi_shim
+		install_cgi_shim()
+		import cgi
+		assert cgi.parse_qs("a=1&a=2&b=3") == parse_qs("a=1&a=2&b=3")
+
+	def test_ncbitaxa_importable(self):
+		from eukdetect.util.ete3_compat import NCBITaxa
+		assert NCBITaxa.__name__ == "NCBITaxa"
+
+	def test_no_legacy_cgi_dependency(self):
+		import tomllib
+		from pathlib import Path
+
+		root = Path(__file__).parent.parent
+		deps = tomllib.loads((root / "pyproject.toml").read_text())["project"]["dependencies"]
+		assert not any("legacy-cgi" in d for d in deps)
+		assert "legacy-cgi" not in (root / "meta.yaml").read_text()
+
+
+class TestRelEukNaming:
+	def test_normalized_column_suffix(self):
+		import inspect
+		from eukdetect.util import normalize_rpks
+
+		src = inspect.getsource(normalize_rpks)
+		assert "_RelEuk" in src
+		assert "_EukFrac" not in src
+
+	def test_legacy_eukfrac_filenames_still_parse(self):
+		from eukdetect.util.normalize_rpks import extract_sample_name
+
+		assert extract_sample_name("s1_filtered_hits_releuk.tsv") == "s1"
+		assert extract_sample_name("s1_filtered_hits_eukfrac.tsv") == "s1"
+		assert extract_sample_name("s1_filtered_hits_eukfrac.txt") == "s1"
+
+	def test_per_sample_column_unchanged(self):
+		import inspect
+		from eukdetect.util import normalize_rpks
+
+		assert "Relative_abundance" in inspect.getsource(normalize_rpks)
 
 
 if __name__ == "__main__":

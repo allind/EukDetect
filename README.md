@@ -27,12 +27,12 @@ FASTQ reads
 [bam_to_pid.py] — count reads and compute percent identity per marker gene
     │
     ▼
-[eukfrac_calc.py] — taxonomic assignment, genus/genome-level disambiguation,
+[releuk_calc.py] — taxonomic assignment, genus/genome-level disambiguation,
     │                filtering (≥ 2 marker genes AND ≥ 4 reads),
-    │                RPKS calculation and relative abundance (EukFrac)
+    │                RPKS calculation and relative abundance (RelEuk)
     ▼
 {sample}_filtered_hits_table.tsv
-{sample}_filtered_hits_eukfrac.tsv
+{sample}_filtered_hits_releuk.tsv
 ```
 
 **Modes** — EukDetect supports running subsets of this pipeline:
@@ -75,11 +75,6 @@ pip install -e .
 ```
 eukdetect --help
 ```
-
-**Python 3.13 and pip:** `ete3` on PyPI imports the `cgi` module, removed from
-the standard library in Python 3.13, so `pip install eukdetect` on 3.13 installs
-without error and then fails when taxonomy is first loaded. Install with conda,
-whose `ete3` build is unaffected, or use Python 3.12 or earlier.
 
 ### Database Installation
 
@@ -233,155 +228,41 @@ eukdetect single -1 R1.fq.gz -2 R2.fq.gz -n sample -o out/ -d eukdb/ --mode prin
 
 ## Output Files
 
-All tabular output is tab-separated and named `.tsv`. Missing or undefined values
-are written as `NA` in every column of every file, so the tables load without
-special handling in both ecosystems:
-
-```r
-read.delim("sample1_filtered_hits_table.tsv")              # R
-```
-```python
-pandas.read_csv("sample1_filtered_hits_table.tsv", sep="\t")   # Python
-```
-
-Numeric columns contain bare numbers. Percentages are written as numbers on a
-0-100 scale with no `%` suffix, so they parse as floats rather than strings.
-
 EukDetect creates the following output directory structure:
 
 ```
 results/
-|-- configs/
-|   `-- config_sample1_1.yml
-|-- logs/
-|   `-- snakemake_sample1_20260101_120000.log
-|-- aln/
-|   `-- sample1_aln_q10_lenfilter.sorted.bam
-|-- filtering/
-|   |-- sample1_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam
-|   |-- sample1_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam.bai
-|   |-- sample1_read_counts_and_mismatches.tsv
-|   |-- sample1_read_identities.tsv
-|   |-- sample1_reassignment_report.tsv
-|   `-- sample1_all_hits_table.tsv
-|-- sample1_filtered_hits_table.tsv
-`-- sample1_filtered_hits_eukfrac.tsv
+├── configs/
+│   └── config_sample1_1.yml
+├── logs/
+│   └── snakemake_sample1_20260101_120000.log
+├── aln/
+│   └── sample1_aln_q10_lenfilter.sorted.bam
+├── filtering/
+│   ├── sample1_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam
+│   ├── sample1_aln_q10_lenfilter_complexityfilter_dupfilter.sorted.bam.bai
+│   ├── sample1_read_counts_and_mismatches.tsv
+│   └── sample1_all_hits_table.tsv
+├── sample1_filtered_hits_table.tsv
+└── sample1_filtered_hits_releuk.tsv
 ```
 
-### `{sample}_filtered_hits_table.tsv`
+**`{sample}_filtered_hits_table.tsv`** reports for each detected taxon:
+- Taxonomic name, rank, lineage, and NCBI taxonomy ID
+- Number of marker genes with aligned reads
+- Total number of reads aligning to marker genes
+- Percent_observed_markers: percentage of marker genes detected
+- Total_marker_coverage: percentage of bases covered in observed markers
+- Percent_identity: average percent identity across aligned reads
 
-One row per taxon passing the read and marker filters.
-
-| Column | Type | Description |
-| --- | --- | --- |
-| Name | character | NCBI taxon name |
-| Rank | character | NCBI rank |
-| Lineage | character | Full lineage string |
-| Taxid | integer | NCBI taxonomy ID |
-| Total_reads | numeric | Reads aligned plus reads reassigned to this taxon |
-| Total_marker_length | integer | Non-redundant marker length in the database, in bases |
-| Observed_marker_length | integer | Length of the markers that received reads |
-| RPKS | numeric | Reads per kilobase of marker sequence |
-| Reads_aligned | numeric | Reads aligning to this taxon before reassignment |
-| PID_aligned | numeric | Percent identity of those reads, 0-100 |
-| Genomes | character | Comma-separated assemblies with aligned reads; `NA` if none |
-| Reads_reassigned | numeric | Reads moved here from a competing taxon |
-| PID_reassigned | numeric | Percent identity of the reassigned reads, 0-100; `NA` when no reads were reassigned |
-| Reassigned_genomes | character | Comma-separated assemblies the reassigned reads came from; `NA` if none |
-
-### `{sample}_filtered_hits_eukfrac.tsv`
-
-One row per node of the taxonomy tree spanned by the detected taxa.
-
-| Column | Type | Description |
-| --- | --- | --- |
-| Lineage | character | Full lineage string |
-| Rank | character | NCBI rank |
-| Name | character | NCBI taxon name |
-| TaxID | integer | NCBI taxonomy ID |
-| RPKS | numeric | Reads per kilobase of marker sequence; `NA` above species level |
-| Relative_abundance | numeric | Abundance relative to other detected eukaryotes |
-| Reads_total | numeric | Reads assigned at or below this node |
-| Total_marker_length | integer | Non-redundant marker length, in bases |
-| Genomes | character | Comma-separated assemblies with aligned reads; `NA` if none |
-
-### `filtering/{sample}_all_hits_table.tsv`
-
-Every taxon with aligned reads, before filtering.
-
-| Column | Type | Description |
-| --- | --- | --- |
-| Name | character | NCBI taxon name |
-| Taxid | integer | NCBI taxonomy ID |
-| Rank | character | NCBI rank |
-| Observed_markers | integer | Markers with at least one aligned read |
-| Read_counts | numeric | Reads aligned |
-| Total_marker_coverage | numeric | Percent of marker bases covered, 0-100 |
-| Percent_identity | numeric | Mean percent identity of aligned reads, 0-100 |
-| Total_marker_length | integer | Non-redundant marker length, in bases |
-| Genomes | character | Comma-separated assemblies with aligned reads; `NA` if none |
-| Filtered | character | `Yes` if the taxon was removed by the read and marker filters |
-
-### `filtering/{sample}_reassignment_report.tsv`
-
-One row per secondary taxon evaluated against its primary. Written for every
-sample, including samples with no detections, in which case it holds the header
-alone.
-
-| Column | Type | Description |
-| --- | --- | --- |
-| Secondary_taxid | integer | Taxon under evaluation |
-| Primary_taxids | character | Comma-separated competitors it was tested against |
-| Promoted | character | `yes` if it was kept as its own species |
-| Secondary_reads | integer | Reads on the secondary |
-| Secondary_markers | integer | Markers carrying those reads |
-| Secondary_median_identity | numeric | Median read identity, 0-100; `NA` if not evaluated |
-| Primary_reads | integer | Reads on the primaries |
-| Primary_median_identity | numeric | Median read identity, 0-100; `NA` if not evaluated |
-| Gap | numeric | Primary median minus secondary median, in identity points |
-| MWU_p_value | numeric | One-sided Mann-Whitney p-value; `NA` if not evaluated |
-| Abundance_ratio | numeric | Secondary reads per base over primary reads per base |
-| Required_gap | numeric | Gap the secondary had to clear to be kept |
-| Reason | character | Sentence describing the decision |
-
-### `filtering/{sample}_read_identities.tsv`
-
-One row per aligned read.
-
-| Column | Type | Description |
-| --- | --- | --- |
-| Read | character | Read name |
-| Mate | integer | 1 or 2 |
-| Marker | character | Marker sequence the read aligned to |
-| Identity | numeric | Percent identity, 0-100 |
-| Aligned_len | integer | Aligned length in bases |
-| Mismatches | integer | Substitutions |
-| AS | integer | Bowtie2 alignment score; `NA` if the aligner did not report one |
-
-### `filtering/{sample}_read_counts_and_mismatches.tsv`
-
-One row per marker sequence with aligned reads.
-
-| Column | Type | Description |
-| --- | --- | --- |
-| Subject | character | Marker sequence name |
-| Readcount | integer | Reads aligned to this marker |
-| Correct_bases | integer | Reference positions matching in every read |
-| Incorrect_bases | integer | Reference positions mismatching in at least one read |
-| Total_bases | integer | Reference positions with coverage |
-| Subjlen | integer | Marker length in bases |
-| Coverage | numeric | Percent of marker bases covered, 0-100 |
-| Percent_ID | numeric | Percent of covered positions matching the reference, 0-100 |
-
-Samples with no aligned reads produce all of the files above. The three
-species-level tables hold a single line reading
-`Zero aligned reads in sample. Likely no eukaryotes present.`, which
-`eukdetect-normalize` recognises and skips.
-
+**`{sample}_filtered_hits_releuk.tsv`** reports:
+- RPKS (Reads Per Kilobase of Sequence): absolute abundance metric for **species-level taxa only**
+- Relative_abundance (RelEuk): relative abundance compared to other eukaryotes at all taxonomic levels
+- Total reads: number of reads aligning to markers at each taxonomic level
 
 ## Important Considerations
 
-**EukFrac interpretation:** The relative abundance metric (`Relative_abundance` in the per-sample table, `{sample}_EukFrac` in the normalized table) is relative only to other eukaryotes, not to bacteria or archaea. Always consider RPKS alongside it when interpreting results.
+**RelEuk interpretation:** The RelEuk (relative abundance) metric is relative only to other eukaryotes, not to bacteria or archaea. Always consider RPKS alongside RelEuk when interpreting results.
 
 **Filtering thresholds:** By default, EukDetect removes taxa with fewer than 4 reads aligning to fewer than 2 marker genes. Unfiltered results are available in the `filtering/` directory.
 
@@ -399,18 +280,18 @@ species-level tables hold a single line reading
 
 ## Normalizing RPKS Across Samples
 
-RPKS values from EukDetect are not normalized by total sequencing depth. To enable cross-sample comparisons and to combine RPKS and relative abundance data across samples into one file, use the provided `eukdetect-normalize` command.
+RPKS values from EukDetect are not normalized by total sequencing depth. To enable cross-sample comparisons and to combine RPKS and RelEuk data across samples into one file, use the provided `eukdetect-normalize` command.
 
 The normalization script produces a combined table with the following columns per sample:
 
 - **`{sample}_RPKS`**: Reads Per Kilobase of Sequence (species-level only; NA at higher ranks)
 - **`{sample}_RPKSB`**: RPKS normalized per billion total bases in the library (species-level only; NA at higher ranks)
-- **`{sample}_EukFrac`**: Relative abundance among detected eukaryotes (all taxonomic levels)
+- **`{sample}_RelEuk`**: Relative abundance among detected eukaryotes (all taxonomic levels)
 
 **Usage:**
 ```
 eukdetect-normalize \
-  --eukfrac results/*_filtered_hits_eukfrac.tsv \
+  --releuk results/*_filtered_hits_releuk.tsv \
   --library-sizes library_sizes.tsv \
   --output all_samples_normalized.tsv
 ```
@@ -478,7 +359,11 @@ Move the newly created `taxa.sqlite` and `taxa.sqlite.traverse.pkl` files from `
 
 ## Bioconda
 
-EukDetect2 is being prepared for submission to Bioconda. In the meantime, install from GitHub (see above).
+EukDetect is available on Bioconda:
+
+```
+conda create -n eukdetect2 -c bioconda eukdetect
+```
 
 ## License
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Read-level re-evaluation of proposed species reassignments.
 
-Earlier stages of eukfrac_calc propose that a species is spillover from a
+Earlier stages of releuk_calc propose that a species is spillover from a
 competitor ("primary") and should have its reads folded into it. This module
 re-tests every such proposal against the per-read identities in the filtered
 BAM, and overturns the proposal when the evidence does not support it.

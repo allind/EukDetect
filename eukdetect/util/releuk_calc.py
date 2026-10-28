@@ -1,23 +1,15 @@
-
-import sys as _sys
+import os
+import sys
 
 try:
-	from ete3 import NCBITaxa
-except ModuleNotFoundError as _e:
-	if _e.name == "cgi":
-		_sys.exit(
-			"ete3 cannot be imported on Python "
-			f"{_sys.version_info.major}.{_sys.version_info.minor}: it imports the "
-			"standard library 'cgi' module, which was removed in Python 3.13.\n"
-			"Install EukDetect with conda, whose ete3 build works on 3.13, or use "
-			"Python 3.12 or earlier."
-		)
-	raise
+	from .ete3_compat import NCBITaxa
+except ImportError:
+	# Invoked as a script by the workflow, so there is no package context
+	sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+	from ete3_compat import NCBITaxa
 
 import argparse
 import textwrap
-import sys
-import os
 import re
 from collections import defaultdict
 import logging
@@ -162,21 +154,21 @@ def main(argv):
 	# 3. Genus-level disambiguation: within each genus, identify secondary species whose hits
 	#    are better explained by the primary species, and reassign their reads
 	# 4. Filter taxa (>=2 markers AND >=4 reads), compute RPKS-normalized relative abundance,
-	#    and write output tables (alltab, primarytab, eukfrac)
+	#    and write output tables (alltab, primarytab, releuk)
 
 	parser = argparse.ArgumentParser(
 		description=textwrap.dedent("""\
 			Summarize and filter alignments by taxid with multi-genome support.
 			Uses read-based abundance with length normalization for universal markers.
 			Required arguments are --dbfile, --taxid_link, 
-			--readcounts, --primarytab, --eukfrac, --alltab
+			--readcounts, --primarytab, --releuk, --alltab
 		"""),
 		formatter_class = argparse.RawDescriptionHelpFormatter
 	)
 	parser.add_argument("--dbfile", type=str, required=True, help="Eukdetect database folder")
 	parser.add_argument("--taxid_link", type=str, required=True, help="BUSCO to taxid to genome link file (3 columns)")
 	parser.add_argument("--readcounts", type=str, required=True, help="Read counts and mismatches file")
-	parser.add_argument("--eukfrac", type=str, required=True, help="Eukaryotic abundance & fraction output file")
+	parser.add_argument("--releuk", type=str, required=True, help="Eukaryotic abundance & fraction output file")
 	parser.add_argument("--primarytab", type=str, required=True, help="Table output of filtered hits")
 	parser.add_argument("--alltab", type=str, required=True, help="Table output of all hits")
 	parser.add_argument("--reference_fasta", type=str, required=True,
@@ -339,7 +331,7 @@ def main(argv):
 	if counter == 0:
 		message = NO_READS_MESSAGE
 		logger.warning(message)
-		for outfile in [files.eukfrac, files.alltab, files.primarytab]:
+		for outfile in [files.releuk, files.alltab, files.primarytab]:
 			try:
 				with open(outfile, 'w') as f:
 					f.write(message + '\n')
@@ -853,7 +845,7 @@ def main(argv):
 	if len(filter_passing_taxids) == 0:
 		message = NO_TAXA_MESSAGE
 		logger.warning(message)
-		for outfile in [files.primarytab, files.eukfrac]:
+		for outfile in [files.primarytab, files.releuk]:
 			try:
 				with open(outfile, 'w') as f:
 					f.write(message + '\n')
@@ -1224,7 +1216,7 @@ def main(argv):
 	logger.info("Writing relative abundance table.")
 	
 	try:
-		with open(files.eukfrac, 'w') as dest:
+		with open(files.releuk, 'w') as dest:
 			dest.write("Lineage\tRank\tName\tTaxID\tRPKS\t"
 					  "Relative_abundance\tReads_total\tTotal_marker_length\tGenomes\n")
 			
@@ -1257,7 +1249,7 @@ def main(argv):
 					dest.write(f"{lin}\t{rank}\t{name}\t{node.name}\t{rpks}\t"
 							  f"{rel_abundance}\t{total_reads}\t{total_marker_length}\t{genome_str}\n")
 		
-		logger.info(f"Wrote relative abundance table to {files.eukfrac}")
+		logger.info(f"Wrote relative abundance table to {files.releuk}")
 	except Exception as e:
 		logger.error(f"Error writing relative abundance table: {e}")
 		sys.exit(1)

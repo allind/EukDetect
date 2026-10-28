@@ -604,10 +604,10 @@ def _print_output_summary(config_dict: dict, mode: str):
 		logger.info("\nFiltered output files:")
 		for sample in samples:
 			hit_table = output_dir / f"{sample}_filtered_hits_table.tsv"
-			eukfrac = output_dir / f"{sample}_filtered_hits_eukfrac.tsv"
+			releuk = output_dir / f"{sample}_filtered_hits_releuk.tsv"
 			logger.info(f"  • {sample}:")
 			logger.info(f"	  - {hit_table}")
-			logger.info(f"	  - {eukfrac}")
+			logger.info(f"	  - {releuk}")
 
 	elif mode == "aln":
 		logger.info(f"\nAlignment output directory: {output_dir / 'aln'}")

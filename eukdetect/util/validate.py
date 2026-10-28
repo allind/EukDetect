@@ -107,7 +107,7 @@ def check_database(config: dict) -> None:
 			f"RPKS needs this file's .fai index to compute each taxon's full "
 			f"marker length; it cannot use the alignment or a precomputed "
 			f"length file instead (see marker_lengths_from_reference in "
-			f"eukfrac_calc.py for why)."
+			f"releuk_calc.py for why)."
 		)
 	fai_path = Path(str(ref_fasta) + ".fai")
 	if not fai_path.exists():
@@ -251,7 +251,7 @@ def check_filter_outputs(config: dict, force: bool) -> None:
 			output_dir / "filtering" / f"{sample}_reassignment_report.tsv",
 			output_dir / "filtering" / f"{sample}_all_hits_table.tsv",
 			output_dir / f"{sample}_filtered_hits_table.tsv",
-			output_dir / f"{sample}_filtered_hits_eukfrac.tsv",
+			output_dir / f"{sample}_filtered_hits_releuk.tsv",
 		]
 		
 		for f in files:

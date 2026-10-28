@@ -88,12 +88,18 @@ def parse_library_sizes(library_file):
 		sys.exit(1)
 
 
-def extract_sample_name(eukfrac_file):
-	filename = Path(eukfrac_file).name
+def extract_sample_name(releuk_file):
+	filename = Path(releuk_file).name
 	
+	#The eukfrac spellings are the pre-2.1 output names, kept so that existing
+	#result directories still aggregate.
 	suffixes_to_remove = [
+		'_filtered_hits_releuk.tsv',
+		'_filtered_hits_releuk.txt',
 		'_filtered_hits_eukfrac.tsv',
 		'_filtered_hits_eukfrac.txt',
+		'_releuk.tsv',
+		'_releuk.txt',
 		'_eukfrac.tsv',
 		'_eukfrac.txt',
 		'.tsv',
@@ -109,8 +115,8 @@ def extract_sample_name(eukfrac_file):
 	return sample_name
 
 
-def parse_eukfrac_file(eukfrac_file, library_sizes):
-	sample_name = extract_sample_name(eukfrac_file)
+def parse_releuk_file(releuk_file, library_sizes):
+	sample_name = extract_sample_name(releuk_file)
 	
 	if sample_name not in library_sizes:
 		logger.error(
@@ -125,7 +131,7 @@ def parse_eukfrac_file(eukfrac_file, library_sizes):
 	taxon_data = {}
 	
 	try:
-		with open(eukfrac_file) as f:
+		with open(releuk_file) as f:
 			# Read first line
 			first_line = f.readline().strip()
 			
@@ -179,7 +185,7 @@ def parse_eukfrac_file(eukfrac_file, library_sizes):
 				taxid = parts[taxid_idx]
 				name = parts[name_idx]
 				rpks_str = parts[rpks_idx]
-				eukfrac_str = parts[rel_abund_idx]
+				releuk_str = parts[rel_abund_idx]
 				
 				# Parse RPKS: NA for non-species ranks, numeric (including 0) for species
 				if rank != 'species':
@@ -193,11 +199,11 @@ def parse_eukfrac_file(eukfrac_file, library_sizes):
 						rpks = 0.0
 						rpksb = 0.0
 				
-				# Parse EukFrac
+				# Parse RelEuk
 				try:
-					eukfrac = float(eukfrac_str)
+					releuk = float(releuk_str)
 				except ValueError:
-					eukfrac = 0.0
+					releuk = 0.0
 				
 				taxon_data[lineage] = {
 					'rank': rank,
@@ -205,7 +211,7 @@ def parse_eukfrac_file(eukfrac_file, library_sizes):
 					'taxid': taxid,
 					'rpks': rpks,
 					'rpksb': rpksb,
-					'eukfrac': eukfrac
+					'releuk': releuk
 				}
 		
 		if taxon_data:
@@ -216,11 +222,11 @@ def parse_eukfrac_file(eukfrac_file, library_sizes):
 		return sample_name, taxon_data
 		
 	except FileNotFoundError:
-		logger.error(f"File not found: {eukfrac_file}")
+		logger.error(f"File not found: {releuk_file}")
 		sys.exit(1)
 
 
-def create_unified_table(eukfrac_files, library_sizes):
+def create_unified_table(releuk_files, library_sizes):
 
 	#Collect data from all files
 	sample_data = {}
@@ -228,12 +234,12 @@ def create_unified_table(eukfrac_files, library_sizes):
 	lineage_info = {}
 	sample_order = []
 	
-	for eukfrac_file in eukfrac_files:
-		if not os.path.exists(eukfrac_file):
-			logger.warning(f"File not found: {eukfrac_file}, skipping")
+	for releuk_file in releuk_files:
+		if not os.path.exists(releuk_file):
+			logger.warning(f"File not found: {releuk_file}, skipping")
 			continue
 		
-		sample_name, taxon_data = parse_eukfrac_file(eukfrac_file, library_sizes)
+		sample_name, taxon_data = parse_releuk_file(releuk_file, library_sizes)
 		sample_order.append(sample_name)
 		sample_data[sample_name] = taxon_data
 		
@@ -262,7 +268,7 @@ def write_unified_table(all_lineages, lineage_info, sample_data, sample_order, o
 				header_parts.extend([
 					f'{sample}_RPKS',
 					f'{sample}_RPKSB',
-					f'{sample}_EukFrac'
+					f'{sample}_RelEuk'
 				])
 			f.write('\t'.join(header_parts) + '\n')
 			
@@ -286,7 +292,7 @@ def write_unified_table(all_lineages, lineage_info, sample_data, sample_order, o
 						row_parts.extend([
 							rpks_str,
 							rpksb_str,
-							f"{data['eukfrac']:.6f}"
+							f"{data['releuk']:.6f}"
 						])
 					else:
 						# Taxon not found in this sample
@@ -306,24 +312,24 @@ def write_unified_table(all_lineages, lineage_info, sample_data, sample_order, o
 
 def main():
 	parser = argparse.ArgumentParser(
-		description="Create unified abundance table from EukDetect eukfrac files",
+		description="Create unified abundance table from EukDetect releuk files",
 		formatter_class=argparse.RawDescriptionHelpFormatter,
 		epilog="""
 Examples:
   eukdetect-normalize \\
-    --eukfrac results/*_filtered_hits_eukfrac.tsv \\
+    --releuk results/*_filtered_hits_releuk.tsv \\
     --library-sizes library_sizes.tsv \\
     --output unified_abundance.tsv
 
 Output format:
-  Lineage  Rank    Name      TaxID  sample1_RPKS  sample1_RPKSB  sample1_EukFrac  sample2_RPKS  ...
+  Lineage  Rank    Name      TaxID  sample1_RPKS  sample1_RPKSB  sample1_RelEuk  sample2_RPKS  ...
   phylum-Ascomycota  phylum  Ascomycota  4890  NA  NA  100.0  NA  ...
   phylum-Ascomycota|class-Saccharomycetes  class  Saccharomycetes  4891  NA  NA  100.0  NA  ...
   ...
   phylum-Ascomycota|...|species-Saccharomyces_cerevisiae  species  Saccharomyces cerevisiae  4932  0.0197  0.00394  100.0  ...
 
   - One row per taxon (all taxonomic levels: phylum, class, order, family, genus, species)
-  - Three columns per sample: RPKS, RPKSB (normalized), EukFrac
+  - Three columns per sample: RPKS, RPKSB (normalized), RelEuk
   - RPKS and RPKSB are NA for non-species ranks
   - Zero values for taxa not detected in a sample
   - Taxonomic tree structure preserved (sorted by lineage string)
@@ -331,11 +337,11 @@ Output format:
 	)
 	
 	parser.add_argument(
-		'--eukfrac',
+		'--releuk',
 		nargs='+',
 		required=True,
 		metavar='FILE',
-		help='EukDetect eukfrac output files'
+		help='EukDetect releuk output files'
 	)
 	
 	parser.add_argument(
@@ -364,11 +370,11 @@ Output format:
 		logger.setLevel(logging.DEBUG)
 	
 	# Validate inputs
-	if not args.eukfrac:
-		logger.error("No eukfrac files provided")
+	if not args.releuk:
+		logger.error("No releuk files provided")
 		sys.exit(1)
 	
-	logger.info(f"Processing {len(args.eukfrac)} eukfrac file(s)")
+	logger.info(f"Processing {len(args.releuk)} releuk file(s)")
 
 	library_sizes = parse_library_sizes(args.library_sizes)
 	
@@ -377,7 +383,7 @@ Output format:
 		sys.exit(1)
 
 	all_lineages, lineage_info, sample_data, sample_order = create_unified_table(
-		args.eukfrac, library_sizes
+		args.releuk, library_sizes
 	)
 	
 	if not all_lineages:
