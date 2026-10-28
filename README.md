@@ -78,7 +78,7 @@ eukdetect --help
 
 ### Database Installation
 
-The EukDetect2 database is hosted on [Zenodo](https://zenodo.org/records/19056625) (DOI: 10.5281/zenodo.19056625). The database files total approximately 7.1 GB.
+The EukDetect2 database is hosted on [Zenodo](https://zenodo.org/records/23479662) ([DOI: 10.5281/zenodo.19056625](https://doi.org/10.5281/zenodo.23479662)). The database files total approximately 7.1 GB.
 
 Download all files individually using zenodo_get (included in EukDetect2 environment):
 
