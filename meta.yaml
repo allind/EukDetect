@@ -1,5 +1,5 @@
 {% set name = "eukdetect" %}
-{% set version = "2.1.0" %}
+{% set version = "2.1.1" %}
 
 package:
   name: {{ name }}
@@ -73,3 +73,4 @@ extra:
     - allind
   identifiers:
     - doi:10.1038/s41467-021-26210-1
+

@@ -714,7 +714,7 @@ class TestVersion:
 		pyproject = tomllib.loads((root / "pyproject.toml").read_text())
 		assert "version" in pyproject["project"]["dynamic"]
 		assert pyproject["tool"]["setuptools"]["dynamic"]["version"]["attr"] == "eukdetect.__version__"
-		assert eukdetect.__version__ == "2.1.0"
+		assert eukdetect.__version__ == "2.1.1"
 		assert not (root / "setup.py").exists()
 
 	def test_meta_yaml_version_matches(self):
@@ -777,4 +777,5 @@ class TestRelEukNaming:
 if __name__ == "__main__":
 	# Allow running with: python test_eukdetect.py
 	pytest.main([__file__, "-v"])
+
 
